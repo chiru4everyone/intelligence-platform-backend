@@ -1,0 +1,961 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Command Centre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+<script>
+window.__SUPA_URL__ = '{SUPA_URL}';
+window.__SUPA_KEY__ = '{SUPA_KEY}';
+</script>
+<style>
+:root{
+  --ink:#080a0f;--ink2:#0d1017;--ink3:#131720;--ink4:#1a2030;
+  --rule:rgba(255,255,255,.06);--rule2:rgba(255,255,255,.12);
+  --white:#f0f2f7;--fog:#8a95a8;--ghost:#4a5568;
+  --teal:#2ec4b6;--gold:#c8a96e;--coral:#e85d4a;--violet:#9b72e8;
+  --green:#4cff91;--sapph:#4a7fe8;
+  --epi:#2ec4b6;--agri:#4caf78;--trade:#4a7fe8;
+  --markets:#c8a96e;--packaging:#9b72e8;--startups:#e85d4a;
+  --ff-serif:'DM Serif Display',Georgia,serif;
+  --ff-body:'Inter',system-ui,sans-serif;
+  --ff-mono:'JetBrains Mono',monospace;
+  --r:6px;--r2:10px;
+  color-scheme:dark
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var(--white);-webkit-font-smoothing:antialiased}
+
+/* ── Shell ── */
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.sidebar{background:var(--ink2);border-right:1px solid var(--rule);display:flex;flex-direction:column;padding:24px 0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.main{overflow-y:auto;padding:32px 36px;display:flex;flex-direction:column;gap:28px}
+
+/* ── Sidebar ── */
+.sb-logo{padding:0 20px 24px;border-bottom:1px solid var(--rule)}
+.sb-wordmark{font-family:var(--ff-serif);font-size:17px;color:var(--white)}
+.sb-role{font-family:var(--ff-mono);font-size:9px;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px}
+.sb-nav{padding:16px 0;flex:1}
+.sb-section{font-family:var(--ff-mono);font-size:9px;color:var(--ghost);letter-spacing:1.2px;text-transform:uppercase;padding:8px 20px 4px}
+.sb-link{display:flex;align-items:center;gap:10px;padding:9px 20px;font-size:12.5px;color:var(--fog);cursor:pointer;border-left:2px solid transparent;transition:all .15s;text-decoration:none}
+.sb-link:hover{color:var(--white);background:rgba(255,255,255,.04)}
+.sb-link.active{color:var(--white);border-left-color:var(--gold);background:rgba(200,169,110,.06)}
+.sb-link .icon{font-size:14px;width:18px;text-align:center}
+.sb-footer{padding:16px 20px;border-top:1px solid var(--rule)}
+.sb-user{font-size:11px;color:var(--fog)}
+.sb-user strong{display:block;color:var(--white);margin-bottom:2px}
+.sb-signout{margin-top:8px;font-size:11px;color:var(--coral);cursor:pointer;background:none;border:none;padding:0;font-family:inherit}
+
+/* ── Page header ── */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.page-title{font-family:var(--ff-serif);font-size:28px;color:var(--white);line-height:1.1}
+.page-sub{font-family:var(--ff-mono);font-size:10px;color:var(--fog);margin-top:6px;letter-spacing:.5px}
+.header-actions{display:flex;gap:8px;align-items:center;flex-shrink:0}
+
+/* ── KPI strip ── */
+.kpi-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.kpi{background:var(--ink2);border:1px solid var(--rule);border-radius:var(--r2);padding:16px 18px}
+.kpi-val{font-family:var(--ff-mono);font-size:24px;font-weight:500;color:var(--white);line-height:1}
+.kpi-label{font-size:11px;color:var(--fog);margin-top:6px}
+.kpi-sub{font-family:var(--ff-mono);font-size:10px;color:var(--teal);margin-top:4px}
+.kpi.gold .kpi-val{color:var(--gold)}
+.kpi.teal .kpi-val{color:var(--teal)}
+.kpi.coral .kpi-val{color:var(--coral)}
+.kpi.green .kpi-val{color:var(--green)}
+
+/* ── Section ── */
+.section{background:var(--ink2);border:1px solid var(--rule);border-radius:var(--r2);overflow:hidden}
+.section-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--rule)}
+.section-title{font-size:12px;font-weight:600;color:var(--white);letter-spacing:.3px}
+.section-meta{font-family:var(--ff-mono);font-size:10px;color:var(--fog)}
+
+/* ── Pipeline board ── */
+.pipeline-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:0;overflow-x:auto}
+.pipeline-col{border-right:1px solid var(--rule);padding:12px}
+.pipeline-col:last-child{border-right:none}
+.pipeline-col-label{font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--fog);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.pipeline-col-count{background:var(--ink4);color:var(--white);border-radius:10px;padding:1px 7px;font-size:9px}
+.rr-card{background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.rr-card:hover{border-color:var(--gold)}
+.rr-card-title{font-size:11.5px;font-weight:500;color:var(--white);line-height:1.3;margin-bottom:6px}
+.rr-card-meta{display:flex;flex-direction:column;gap:3px}
+.rr-card-vertical{font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:1px 6px;border-radius:8px;display:inline-block;width:fit-content}
+.rr-card-client{font-size:10px;color:var(--fog)}
+.rr-card-value{font-family:var(--ff-mono);font-size:10px;color:var(--gold)}
+.rr-card-due{font-family:var(--ff-mono);font-size:9px;color:var(--fog)}
+.rr-card-due.overdue{color:var(--coral)}
+
+/* ── Vertical health cards ── */
+.vertical-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding:16px}
+.vcard{background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2);padding:16px;border-top:3px solid}
+.vcard-label{font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px}
+.vcard-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.vcard-stat{text-align:center}
+.vcard-stat-val{font-family:var(--ff-mono);font-size:18px;font-weight:500;color:var(--white)}
+.vcard-stat-label{font-size:9px;color:var(--fog);margin-top:2px}
+
+/* ── Revenue table ── */
+.rev-table{width:100%;border-collapse:collapse}
+.rev-table th{font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--fog);padding:10px 16px;text-align:left;border-bottom:1px solid var(--rule)}
+.rev-table td{font-size:12px;padding:11px 16px;border-bottom:1px solid var(--rule);color:var(--white)}
+.rev-table tr:last-child td{border-bottom:none}
+.rev-table .mono{font-family:var(--ff-mono);font-size:11px}
+.rev-table .amount{font-family:var(--ff-mono);font-size:12px;color:var(--gold)}
+
+/* ── Activity feed ── */
+.activity-feed{padding:4px 0}
+.act-row{display:flex;align-items:flex-start;gap:12px;padding:10px 18px;border-bottom:1px solid var(--rule)}
+.act-row:last-child{border-bottom:none}
+.act-dot{width:7px;height:7px;border-radius:50%;background:var(--teal);flex-shrink:0;margin-top:5px}
+.act-body{flex:1;min-width:0}
+.act-text{font-size:12px;color:var(--white);line-height:1.4}
+.act-meta{font-family:var(--ff-mono);font-size:9.5px;color:var(--fog);margin-top:3px}
+
+/* ── Workload table ── */
+.workload-table{width:100%;border-collapse:collapse}
+.workload-table th{font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--fog);padding:10px 16px;text-align:left;border-bottom:1px solid var(--rule)}
+.workload-table td{font-size:12px;padding:10px 16px;border-bottom:1px solid var(--rule);color:var(--white);vertical-align:middle}
+.workload-table tr:last-child td{border-bottom:none}
+.load-bar-bg{background:var(--ink4);border-radius:3px;height:5px;width:80px}
+.load-bar{background:var(--teal);border-radius:3px;height:5px;transition:width .3s}
+.load-bar.warn{background:var(--gold)}
+.load-bar.high{background:var(--coral)}
+
+/* ── Status badges ── */
+.badge{display:inline-block;font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:.8px;padding:2px 7px;border-radius:8px;white-space:nowrap}
+.badge-draft{background:rgba(74,85,104,.3);color:var(--fog)}
+.badge-pending{background:rgba(200,169,110,.15);color:var(--gold);border:1px solid rgba(200,169,110,.3)}
+.badge-approved{background:rgba(76,255,145,.12);color:var(--green);border:1px solid rgba(76,255,145,.2)}
+.badge-inprogress{background:rgba(74,127,232,.15);color:var(--sapph);border:1px solid rgba(74,127,232,.25)}
+.badge-review{background:rgba(155,114,232,.15);color:var(--violet);border:1px solid rgba(155,114,232,.25)}
+.badge-published{background:rgba(46,196,182,.15);color:var(--teal);border:1px solid rgba(46,196,182,.25)}
+.badge-delivered{background:rgba(200,169,110,.25);color:var(--gold);border:1px solid rgba(200,169,110,.4)}
+
+/* ── Modal / drawer ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(8,10,15,.8);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);width:min(540px,94vw);max-height:90vh;overflow-y:auto;padding:28px 28px 24px}
+.modal-title{font-family:var(--ff-serif);font-size:20px;color:var(--white);margin-bottom:20px}
+.form-row{margin-bottom:14px}
+.form-label{font-size:11px;color:var(--fog);margin-bottom:5px;display:block}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none;transition:border-color .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--gold)}
+.form-select option{background:var(--ink3)}
+.form-textarea{resize:vertical;min-height:80px}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{padding:9px 18px;border-radius:var(--r);font-family:var(--ff-body);font-size:13px;cursor:pointer;border:none;transition:all .15s;font-weight:500}
+.btn-primary{background:var(--gold);color:var(--ink)}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-ghost{background:transparent;color:var(--fog);border:1px solid var(--rule2)}
+.btn-ghost:hover{color:var(--white);border-color:var(--rule2)}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+
+/* ── Detail drawer ── */
+.drawer-bg{display:none;position:fixed;inset:0;background:rgba(8,10,15,.6);z-index:100}
+.drawer-bg.open{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(480px,96vw);background:var(--ink2);border-left:1px solid var(--rule2);padding:28px 28px 100px;overflow-y:auto;z-index:101;transform:translateX(100%);transition:transform .25s ease}
+.drawer.open{transform:translateX(0)}
+.drawer-title{font-family:var(--ff-serif);font-size:20px;color:var(--white);margin-bottom:4px}
+.drawer-sub{font-size:11px;color:var(--fog);margin-bottom:20px}
+.drawer-close{position:absolute;top:20px;right:20px;background:none;border:none;color:var(--fog);font-size:20px;cursor:pointer;line-height:1}
+.detail-row{display:flex;flex-direction:column;gap:4px;padding:12px 0;border-bottom:1px solid var(--rule)}
+.detail-row:last-child{border-bottom:none}
+.detail-label{font-family:var(--ff-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:var(--fog)}
+.detail-value{font-size:13px;color:var(--white);line-height:1.4}
+.detail-actions{margin-top:20px;display:flex;flex-direction:column;gap:8px}
+.action-btn{padding:10px 16px;border-radius:var(--r);font-size:12.5px;cursor:pointer;border:1px solid var(--rule2);background:var(--ink3);color:var(--white);transition:all .15s;font-family:var(--ff-body);text-align:left}
+.action-btn:hover{border-color:var(--gold);color:var(--gold)}
+.action-btn.danger:hover{border-color:var(--coral);color:var(--coral)}
+
+/* ── Alerts ── */
+.alerts-list{padding:4px 0}
+.alert-row{display:flex;align-items:flex-start;gap:12px;padding:10px 18px;border-bottom:1px solid var(--rule)}
+.alert-row:last-child{border-bottom:none}
+.alert-icon{font-size:14px;flex-shrink:0;margin-top:1px}
+.alert-body{flex:1}
+.alert-text{font-size:12px;color:var(--white);line-height:1.4}
+.alert-meta{font-family:var(--ff-mono);font-size:9.5px;color:var(--fog);margin-top:3px}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2);padding:12px 18px;font-size:13px;color:var(--white);z-index:200;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;max-width:320px}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* ── Responsive ── */
+@media(max-width:700px){
+  .shell{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .main{padding:16px}
+  .kpi-strip{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-wordmark">Command Centre</div>
+      <div class="sb-role">Master · All Verticals</div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-section">Overview</div>
+      <a class="sb-link active" onclick="showView('pipeline')"><span class="icon">📋</span> Pipeline</a>
+      <a class="sb-link" onclick="showView('verticals')"><span class="icon">🌐</span> Verticals</a>
+      <a class="sb-link" onclick="showView('revenue')"><span class="icon">💰</span> Revenue</a>
+      <div class="sb-section" style="margin-top:8px">Team</div>
+      <a class="sb-link" onclick="showView('workload')"><span class="icon">👥</span> Workload</a>
+      <a class="sb-link" onclick="showView('activity')"><span class="icon">🕐</span> Activity</a>
+      <div class="sb-section" style="margin-top:8px">Requests</div>
+      <a class="sb-link" onclick="showView('requests')"><span class="icon">🔬</span> All Requests</a>
+      <a class="sb-link" onclick="openNewRequestModal()"><span class="icon">＋</span> New Request</a>
+    </nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <strong id="sbUserName">—</strong>
+        <span id="sbUserEmail"></span>
+      </div>
+      <button class="sb-signout" onclick="signOut()">Sign out</button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main" id="mainContent">
+
+    <!-- Page header -->
+    <div class="page-header">
+      <div>
+        <div class="page-title">Command Centre</div>
+        <div class="page-sub" id="lastRefresh">Loading…</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-ghost" onclick="loadAll()" style="font-size:12px">↻ Refresh</button>
+        <button class="btn btn-primary" onclick="openNewRequestModal()" style="font-size:12px">+ New Request</button>
+      </div>
+    </div>
+
+    <!-- KPI strip -->
+    <div class="kpi-strip" id="kpiStrip">
+      <div class="kpi"><div class="kpi-val">—</div><div class="kpi-label">Total Requests</div></div>
+      <div class="kpi teal"><div class="kpi-val">—</div><div class="kpi-label">In Production</div></div>
+      <div class="kpi gold"><div class="kpi-val">—</div><div class="kpi-label">Pending Approval</div></div>
+      <div class="kpi green"><div class="kpi-val">—</div><div class="kpi-label">Published</div></div>
+      <div class="kpi coral"><div class="kpi-val">—</div><div class="kpi-label">Overdue</div></div>
+      <div class="kpi gold"><div class="kpi-val">—</div><div class="kpi-label">Pipeline Value</div></div>
+    </div>
+
+    <!-- Views (toggled) -->
+
+    <!-- Pipeline board -->
+    <div id="view-pipeline">
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Research Pipeline</div>
+          <div class="section-meta" id="pipelineCount"></div>
+        </div>
+        <div class="pipeline-cols" id="pipelineCols">
+          <div style="padding:24px;color:var(--fog);font-size:12px">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Verticals health -->
+    <div id="view-verticals" style="display:none">
+      <div class="section">
+        <div class="section-head"><div class="section-title">Vertical Health</div></div>
+        <div class="vertical-grid" id="verticalGrid">
+          <div style="padding:24px;color:var(--fog);font-size:12px">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Revenue -->
+    <div id="view-revenue" style="display:none">
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Revenue Tracker</div>
+          <div class="section-meta">By request status</div>
+        </div>
+        <table class="rev-table" id="revenueTable">
+          <thead><tr><th>Status</th><th>Requests</th><th>Total Value</th><th>Avg Value</th></tr></thead>
+          <tbody id="revenueBody"><tr><td colspan="4" style="padding:20px;color:var(--fog);font-size:12px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Workload -->
+    <div id="view-workload" style="display:none">
+      <div class="section">
+        <div class="section-head"><div class="section-title">Team Workload</div></div>
+        <table class="workload-table" id="workloadTable">
+          <thead><tr><th>Team Member</th><th>Role</th><th>Vertical</th><th>Active Requests</th><th>Load</th></tr></thead>
+          <tbody id="workloadBody"><tr><td colspan="5" style="padding:20px;color:var(--fog);font-size:12px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Activity -->
+    <div id="view-activity" style="display:none">
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Recent Activity</div>
+          <div class="section-meta">All verticals</div>
+        </div>
+        <div class="activity-feed" id="activityFeed">
+          <div style="padding:20px;color:var(--fog);font-size:12px">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- All requests table -->
+    <div id="view-requests" style="display:none">
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">All Research Requests</div>
+          <div class="section-meta" id="requestsCount"></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse" id="requestsTable">
+            <thead>
+              <tr>
+                <th style="font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--fog);padding:10px 16px;text-align:left;border-bottom:1px solid var(--rule)">Title</th>
+                <th style="font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--fog);padding:10px 16px;text-align:left;border-bottom:1px solid var(--rule)">Vertical</th>
+                <th style="font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--fog);padding:10px 16px;text-align:left;border-bottom:1px solid var(--rule)">Client</th>
+                <th style="font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--fog);padding:10px 16px;text-align:left;border-bottom:1px solid var(--rule)">Status</th>
+                <th style="font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--fog);padding:10px 16px;text-align:left;border-bottom:1px solid var(--rule)">Value</th>
+                <th style="font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--fog);padding:10px 16px;text-align:left;border-bottom:1px solid var(--rule)">Due</th>
+                <th style="font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--fog);padding:10px 16px;text-align:left;border-bottom:1px solid var(--rule)">Raised</th>
+              </tr>
+            </thead>
+            <tbody id="requestsBody">
+              <tr><td colspan="7" style="padding:20px;color:var(--fog);font-size:12px">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alerts (always shown below active view) -->
+    <div class="section" id="alertsSection" style="display:none">
+      <div class="section-head">
+        <div class="section-title">⚠ Alerts</div>
+        <div class="section-meta" id="alertsCount"></div>
+      </div>
+      <div class="alerts-list" id="alertsList"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- New Request Modal -->
+<div class="modal-bg" id="newReqModal">
+  <div class="modal">
+    <div class="modal-title">New Research Request</div>
+    <div class="form-row">
+      <label class="form-label">Title *</label>
+      <input class="form-input" id="rrTitle" placeholder="e.g. Dengue Incidence — South Asia Q4 2026">
+    </div>
+    <div class="form-row-2">
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">Vertical *</label>
+        <select class="form-select" id="rrVertical">
+          <option value="">Select…</option>
+          <option value="epi">Epidemiology</option>
+          <option value="agri">Agriculture</option>
+          <option value="trade">Trade</option>
+          <option value="markets">Markets</option>
+          <option value="packaging">Packaging</option>
+          <option value="startups">Startups</option>
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">Period</label>
+        <input class="form-input" id="rrPeriod" placeholder="e.g. Q4 2026">
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Indicator / Research Focus *</label>
+      <input class="form-input" id="rrIndicator" placeholder="e.g. Dengue Incidence Rate">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Geographies (comma-separated)</label>
+      <input class="form-input" id="rrGeos" placeholder="e.g. India, Bangladesh, Sri Lanka, Thailand">
+    </div>
+    <div class="form-row-2">
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">Client Name</label>
+        <input class="form-input" id="rrClient" placeholder="Client or organisation">
+      </div>
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">Contract Value (INR)</label>
+        <input class="form-input" id="rrValue" type="number" placeholder="0">
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Due Date</label>
+      <input class="form-input" id="rrDue" type="date">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Notes / Scope briefing</label>
+      <textarea class="form-textarea" id="rrNotes" placeholder="Describe the research scope, specific asks, or context from the sales team…"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeNewRequestModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitNewRequest()">Create Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail drawer -->
+<div class="drawer-bg" id="drawerBg" onclick="closeDrawer()"></div>
+<div class="drawer" id="detailDrawer">
+  <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  <div class="drawer-title" id="drawerTitle">—</div>
+  <div class="drawer-sub" id="drawerSub">—</div>
+  <div id="drawerContent"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const { createClient } = supabase;
+const _supa = createClient(window.__SUPA_URL__, window.__SUPA_KEY__);
+window._supa = _supa;
+
+let _profile = null;
+let _allRequests = [];
+let _currentView = 'pipeline';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s){ const d=document.createElement('div'); d.textContent=String(s||''); return d.innerHTML; }
+
+function fmtDate(s){
+  if(!s) return '—';
+  try{
+    return new Date(s).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  }catch{return s;}
+}
+
+function fmtCurrency(v, cur='INR'){
+  if(v == null || v === '') return '—';
+  const n = Number(v);
+  if(isNaN(n)) return '—';
+  return new Intl.NumberFormat('en-IN',{style:'currency',currency:cur,maximumFractionDigits:0}).format(n);
+}
+
+function showToast(msg, dur=3000){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), dur);
+}
+
+function daysUntil(dateStr){
+  if(!dateStr) return null;
+  const d = new Date(dateStr);
+  const now = new Date();
+  now.setHours(0,0,0,0);
+  d.setHours(0,0,0,0);
+  return Math.round((d - now) / 86400000);
+}
+
+function daysSince(dateStr){
+  if(!dateStr) return null;
+  const d = new Date(dateStr);
+  const now = new Date();
+  return Math.round((now - d) / 86400000);
+}
+
+const VERTICAL_COLOR = {
+  epi:'var(--epi)', agri:'var(--agri)', trade:'var(--trade)',
+  markets:'var(--markets)', packaging:'var(--packaging)', startups:'var(--startups)'
+};
+const VERTICAL_LABEL = {
+  epi:'Epidemiology', agri:'Agriculture', trade:'Trade',
+  markets:'Markets', packaging:'Packaging', startups:'Startups'
+};
+
+const STATUS_BADGE = {
+  draft:'badge-draft', pending_approval:'badge-pending',
+  approved:'badge-approved', in_progress:'badge-inprogress',
+  review:'badge-review', published:'badge-published', delivered:'badge-delivered'
+};
+const STATUS_LABEL = {
+  draft:'Draft', pending_approval:'Pending Approval',
+  approved:'Approved', in_progress:'In Progress',
+  review:'In Review', published:'Published', delivered:'Delivered'
+};
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function init(){
+  const { data:{ session } } = await _supa.auth.getSession();
+  if(!session){ window.location.href = '/'; return; }
+
+  const token = session.access_token;
+  try{
+    const res = await fetch('/api/me', { headers:{'Authorization':`Bearer ${token}`} });
+    if(!res.ok) throw new Error('not ok');
+    _profile = await res.json();
+    if(_profile.role !== 'master'){
+      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Inter,sans-serif;color:#8a95a8;flex-direction:column;gap:12px"><div style="font-size:32px">🔒</div><div>Master access required</div><a href="/" style="color:#2ec4b6;font-size:13px">← Back to login</a></div>';
+      return;
+    }
+    document.getElementById('sbUserName').textContent = _profile.full_name || _profile.email;
+    document.getElementById('sbUserEmail').textContent = _profile.email || '';
+  }catch{
+    window.location.href = '/';
+    return;
+  }
+
+  loadAll();
+}
+
+async function signOut(){
+  await _supa.auth.signOut();
+  window.location.href = '/';
+}
+
+// ── View switching ────────────────────────────────────────────────────────────
+function showView(name){
+  _currentView = name;
+  const views = ['pipeline','verticals','revenue','workload','activity','requests'];
+  views.forEach(v => {
+    const el = document.getElementById(`view-${v}`);
+    if(el) el.style.display = v === name ? '' : 'none';
+  });
+  document.querySelectorAll('.sb-link').forEach(l => l.classList.remove('active'));
+  event?.currentTarget?.classList?.add('active');
+}
+
+// ── Load all data ─────────────────────────────────────────────────────────────
+async function loadAll(){
+  document.getElementById('lastRefresh').textContent = 'Refreshing…';
+  await Promise.all([loadRequests(), loadActivity(), loadWorkload()]);
+  document.getElementById('lastRefresh').textContent = `Last refreshed: ${new Date().toLocaleTimeString('en-IN')}`;
+}
+
+async function loadRequests(){
+  const { data:{ session } } = await _supa.auth.getSession();
+  const token = session?.access_token || '';
+  try{
+    const res = await fetch('/api/research-requests-all', {
+      headers:{'Authorization':`Bearer ${token}`}
+    });
+    if(!res.ok) throw new Error(await res.text());
+    const json = await res.json();
+    _allRequests = json.requests || [];
+    renderKPIs(json);
+    renderPipeline(_allRequests);
+    renderVerticals(_allRequests);
+    renderRevenue(json.revenue_by_status || {});
+    renderRequestsTable(_allRequests);
+    renderAlerts(_allRequests);
+  }catch(e){
+    console.error('loadRequests error', e);
+  }
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function renderKPIs(json){
+  const rows = json.requests || [];
+  const now = new Date(); now.setHours(0,0,0,0);
+
+  const inProd = rows.filter(r=>['approved','in_progress','review'].includes(r.status)).length;
+  const pending = rows.filter(r=>r.status==='pending_approval').length;
+  const published = rows.filter(r=>['published','delivered'].includes(r.status)).length;
+  const overdue = rows.filter(r=>r.due_date && new Date(r.due_date)<now && !['published','delivered'].includes(r.status)).length;
+
+  const pipeline = rows
+    .filter(r=>!['delivered'].includes(r.status))
+    .reduce((s,r)=>s+(Number(r.contract_value)||0), 0);
+
+  const strip = document.getElementById('kpiStrip');
+  strip.innerHTML = `
+    <div class="kpi"><div class="kpi-val">${rows.length}</div><div class="kpi-label">Total Requests</div></div>
+    <div class="kpi teal"><div class="kpi-val">${inProd}</div><div class="kpi-label">In Production</div></div>
+    <div class="kpi gold"><div class="kpi-val">${pending}</div><div class="kpi-label">Pending Approval</div></div>
+    <div class="kpi green"><div class="kpi-val">${published}</div><div class="kpi-label">Published / Delivered</div></div>
+    <div class="kpi coral"><div class="kpi-val">${overdue}</div><div class="kpi-label">Overdue</div></div>
+    <div class="kpi gold"><div class="kpi-val">${fmtCurrency(pipeline)}</div><div class="kpi-label">Pipeline Value</div></div>
+  `;
+}
+
+// ── Pipeline board ────────────────────────────────────────────────────────────
+const PIPELINE_STAGES = [
+  {key:'pending_approval', label:'Pending Approval'},
+  {key:'approved',         label:'Approved'},
+  {key:'in_progress',      label:'In Progress'},
+  {key:'review',           label:'In Review'},
+  {key:'published',        label:'Published'},
+  {key:'delivered',        label:'Delivered'},
+];
+
+function renderPipeline(rows){
+  const byStatus = {};
+  PIPELINE_STAGES.forEach(s => byStatus[s.key] = []);
+  rows.forEach(r => { if(byStatus[r.status]) byStatus[r.status].push(r); });
+
+  const cols = PIPELINE_STAGES.map(s => {
+    const cards = (byStatus[s.key]||[]).map(r => rrCard(r)).join('');
+    return `<div class="pipeline-col">
+      <div class="pipeline-col-label">
+        ${s.label}
+        <span class="pipeline-col-count">${(byStatus[s.key]||[]).length}</span>
+      </div>
+      ${cards || '<div style="color:var(--fog);font-size:11px;text-align:center;padding:16px 0">Empty</div>'}
+    </div>`;
+  }).join('');
+
+  document.getElementById('pipelineCols').innerHTML = cols;
+  document.getElementById('pipelineCount').textContent = `${rows.length} requests`;
+}
+
+function rrCard(r){
+  const col = VERTICAL_COLOR[r.vertical] || 'var(--fog)';
+  const vlabel = VERTICAL_LABEL[r.vertical] || r.vertical;
+  const days = daysUntil(r.due_date);
+  const dueStr = r.due_date
+    ? `<div class="rr-card-due ${days!==null&&days<0?'overdue':''}">${days<0?`${Math.abs(days)}d overdue`:days===0?'Due today':`${days}d left`}</div>`
+    : '';
+  const val = r.contract_value ? `<div class="rr-card-value">${fmtCurrency(r.contract_value,r.currency)}</div>` : '';
+  return `<div class="rr-card" onclick="openDrawer('${r.id}')">
+    <div class="rr-card-title">${esc(r.title)}</div>
+    <div class="rr-card-meta">
+      <span class="rr-card-vertical" style="background:${col}22;color:${col};border:1px solid ${col}44">${vlabel}</span>
+      ${r.client_name ? `<div class="rr-card-client">${esc(r.client_name)}</div>` : ''}
+      ${val}${dueStr}
+    </div>
+  </div>`;
+}
+
+// ── Verticals health ──────────────────────────────────────────────────────────
+function renderVerticals(rows){
+  const VERTICALS = ['epi','agri','trade','markets','packaging','startups'];
+  const cards = VERTICALS.map(v => {
+    const vrows = rows.filter(r=>r.vertical===v);
+    const active = vrows.filter(r=>['approved','in_progress','review'].includes(r.status)).length;
+    const done = vrows.filter(r=>['published','delivered'].includes(r.status)).length;
+    const col = VERTICAL_COLOR[v] || 'var(--fog)';
+    return `<div class="vcard" style="border-top-color:${col}">
+      <div class="vcard-label" style="color:${col}">${VERTICAL_LABEL[v]}</div>
+      <div class="vcard-stats">
+        <div class="vcard-stat"><div class="vcard-stat-val">${vrows.length}</div><div class="vcard-stat-label">Total</div></div>
+        <div class="vcard-stat"><div class="vcard-stat-val" style="color:${col}">${active}</div><div class="vcard-stat-label">Active</div></div>
+        <div class="vcard-stat"><div class="vcard-stat-val" style="color:var(--green)">${done}</div><div class="vcard-stat-label">Done</div></div>
+        <div class="vcard-stat"><div class="vcard-stat-val" style="color:var(--gold)">${vrows.filter(r=>r.status==='pending_approval').length}</div><div class="vcard-stat-label">Pending</div></div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('verticalGrid').innerHTML = cards;
+}
+
+// ── Revenue ───────────────────────────────────────────────────────────────────
+function renderRevenue(revByStatus){
+  const STAGES = ['draft','pending_approval','approved','in_progress','review','published','delivered'];
+  const rows = _allRequests;
+  let html = '';
+  let totalRevenue = 0;
+
+  STAGES.forEach(s => {
+    const sRows = rows.filter(r=>r.status===s);
+    if(!sRows.length) return;
+    const total = sRows.reduce((a,r)=>a+(Number(r.contract_value)||0),0);
+    const avg = total/sRows.length;
+    totalRevenue += total;
+    html += `<tr>
+      <td><span class="badge ${STATUS_BADGE[s]}">${STATUS_LABEL[s]}</span></td>
+      <td class="mono">${sRows.length}</td>
+      <td class="amount">${fmtCurrency(total)}</td>
+      <td class="mono" style="color:var(--fog)">${fmtCurrency(avg)}</td>
+    </tr>`;
+  });
+
+  if(!html) html = '<tr><td colspan="4" style="padding:20px;color:var(--fog);font-size:12px">No requests yet</td></tr>';
+  else html += `<tr style="background:rgba(200,169,110,.05)">
+    <td style="font-weight:600;font-size:12px">Total</td>
+    <td class="mono">${rows.length}</td>
+    <td class="amount" style="font-size:14px">${fmtCurrency(totalRevenue)}</td>
+    <td></td>
+  </tr>`;
+
+  document.getElementById('revenueBody').innerHTML = html;
+}
+
+// ── Requests table ────────────────────────────────────────────────────────────
+function renderRequestsTable(rows){
+  document.getElementById('requestsCount').textContent = `${rows.length} total`;
+  if(!rows.length){
+    document.getElementById('requestsBody').innerHTML = '<tr><td colspan="7" style="padding:20px;color:var(--fog);font-size:12px">No requests yet</td></tr>';
+    return;
+  }
+  const html = rows.map(r => {
+    const days = daysUntil(r.due_date);
+    const dueCell = r.due_date
+      ? `<span style="${days!==null&&days<0?'color:var(--coral)':''}">${fmtDate(r.due_date)}</span>`
+      : '—';
+    return `<tr style="cursor:pointer" onclick="openDrawer('${r.id}')">
+      <td style="font-size:12px;padding:10px 16px;border-bottom:1px solid var(--rule);max-width:220px;word-break:break-word">${esc(r.title)}</td>
+      <td style="padding:10px 16px;border-bottom:1px solid var(--rule)"><span style="font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:2px 7px;border-radius:8px;background:${VERTICAL_COLOR[r.vertical]}22;color:${VERTICAL_COLOR[r.vertical]};border:1px solid ${VERTICAL_COLOR[r.vertical]}44">${VERTICAL_LABEL[r.vertical]||r.vertical}</span></td>
+      <td style="font-size:12px;padding:10px 16px;border-bottom:1px solid var(--rule);color:var(--fog)">${esc(r.client_name||'—')}</td>
+      <td style="padding:10px 16px;border-bottom:1px solid var(--rule)"><span class="badge ${STATUS_BADGE[r.status]||''}">${STATUS_LABEL[r.status]||r.status}</span></td>
+      <td style="font-family:var(--ff-mono);font-size:11px;padding:10px 16px;border-bottom:1px solid var(--rule);color:var(--gold)">${fmtCurrency(r.contract_value,r.currency)}</td>
+      <td style="font-family:var(--ff-mono);font-size:11px;padding:10px 16px;border-bottom:1px solid var(--rule)">${dueCell}</td>
+      <td style="font-family:var(--ff-mono);font-size:10px;padding:10px 16px;border-bottom:1px solid var(--rule);color:var(--fog)">${fmtDate(r.created_at)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('requestsBody').innerHTML = html;
+}
+
+// ── Activity feed ─────────────────────────────────────────────────────────────
+async function loadActivity(){
+  try{
+    const { data, error } = await _supa
+      .from('activity_log')
+      .select('*')
+      .order('created_at', {ascending:false})
+      .limit(40);
+    if(error) throw error;
+    const rows = data||[];
+    if(!rows.length){
+      document.getElementById('activityFeed').innerHTML = '<div style="padding:20px;color:var(--fog);font-size:12px">No activity yet</div>';
+      return;
+    }
+    document.getElementById('activityFeed').innerHTML = rows.map(r => {
+      const actor = r.actor_name || r.actor_email || 'System';
+      const ago = daysSince(r.created_at);
+      const agoStr = ago===0?'Today':ago===1?'Yesterday':`${ago}d ago`;
+      return `<div class="act-row">
+        <div class="act-dot"></div>
+        <div class="act-body">
+          <div class="act-text">${esc(r.note||r.action||'Activity')}</div>
+          <div class="act-meta">${esc(actor)} · ${esc(r.vertical||'')} · ${agoStr}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    document.getElementById('activityFeed').innerHTML = `<div style="padding:20px;color:var(--fog);font-size:12px">Could not load activity</div>`;
+  }
+}
+
+// ── Workload ──────────────────────────────────────────────────────────────────
+async function loadWorkload(){
+  try{
+    const { data:profiles } = await _supa
+      .from('profiles')
+      .select('id,full_name,email,role,vertical')
+      .in('role',['analyst','senior','head']);
+    if(!profiles) return;
+
+    // Count active requests per person
+    const activeRequests = _allRequests.filter(r=>['approved','in_progress','review'].includes(r.status));
+    const countByPerson = {};
+    activeRequests.forEach(r=>{
+      if(r.assigned_analyst) countByPerson[r.assigned_analyst] = (countByPerson[r.assigned_analyst]||0)+1;
+      if(r.assigned_senior)  countByPerson[r.assigned_senior]  = (countByPerson[r.assigned_senior]||0)+1;
+    });
+
+    const MAX_LOAD = 5;
+    const html = profiles.map(p => {
+      const count = countByPerson[p.id]||0;
+      const pct = Math.min(100, (count/MAX_LOAD)*100);
+      const barClass = pct>80?'high':pct>60?'warn':'';
+      const roleLabel = {analyst:'Analyst',senior:'Senior Analyst',head:'Head'}[p.role]||p.role;
+      return `<tr>
+        <td style="font-size:12px;padding:10px 16px;border-bottom:1px solid var(--rule)">${esc(p.full_name||p.email)}</td>
+        <td style="font-family:var(--ff-mono);font-size:10px;padding:10px 16px;border-bottom:1px solid var(--rule);color:var(--fog)">${roleLabel}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid var(--rule)"><span style="font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;padding:2px 7px;border-radius:8px;background:${VERTICAL_COLOR[p.vertical]||'var(--ink4)'}22;color:${VERTICAL_COLOR[p.vertical]||'var(--fog)'}">${VERTICAL_LABEL[p.vertical]||p.vertical||'—'}</span></td>
+        <td style="font-family:var(--ff-mono);font-size:12px;padding:10px 16px;border-bottom:1px solid var(--rule)">${count}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid var(--rule)">
+          <div class="load-bar-bg"><div class="load-bar ${barClass}" style="width:${pct}%"></div></div>
+        </td>
+      </tr>`;
+    }).join('');
+    document.getElementById('workloadBody').innerHTML = html || '<tr><td colspan="5" style="padding:20px;color:var(--fog);font-size:12px">No team members yet</td></tr>';
+  }catch(e){ console.error('workload error',e); }
+}
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+function renderAlerts(rows){
+  const now = new Date(); now.setHours(0,0,0,0);
+  const alerts = [];
+
+  // Overdue
+  rows.filter(r=>r.due_date&&new Date(r.due_date)<now&&!['published','delivered'].includes(r.status))
+    .forEach(r=>{
+      const d = Math.abs(daysUntil(r.due_date));
+      alerts.push({icon:'🔴',text:`<strong>${esc(r.title)}</strong> is ${d} day${d!==1?'s':''} overdue`,meta:`${VERTICAL_LABEL[r.vertical]} · ${STATUS_LABEL[r.status]}`});
+    });
+
+  // Pending approval > 2 days
+  rows.filter(r=>r.status==='pending_approval'&&daysSince(r.created_at)>2)
+    .forEach(r=>{
+      const d = daysSince(r.created_at);
+      alerts.push({icon:'🟡',text:`<strong>${esc(r.title)}</strong> has been pending approval for ${d} days`,meta:`${VERTICAL_LABEL[r.vertical]} · Raised ${fmtDate(r.created_at)}`});
+    });
+
+  // Stalled in progress > 7 days
+  rows.filter(r=>r.status==='in_progress'&&daysSince(r.updated_at||r.created_at)>7)
+    .forEach(r=>{
+      alerts.push({icon:'🟠',text:`<strong>${esc(r.title)}</strong> has been in progress with no update for over 7 days`,meta:`${VERTICAL_LABEL[r.vertical]}`});
+    });
+
+  const section = document.getElementById('alertsSection');
+  const list = document.getElementById('alertsList');
+  if(!alerts.length){ section.style.display='none'; return; }
+
+  section.style.display='';
+  document.getElementById('alertsCount').textContent = `${alerts.length} alert${alerts.length!==1?'s':''}`;
+  list.innerHTML = alerts.map(a=>`<div class="alert-row">
+    <div class="alert-icon">${a.icon}</div>
+    <div class="alert-body">
+      <div class="alert-text">${a.text}</div>
+      <div class="alert-meta">${a.meta}</div>
+    </div>
+  </div>`).join('');
+}
+
+// ── Detail drawer ─────────────────────────────────────────────────────────────
+function openDrawer(id){
+  const r = _allRequests.find(x=>x.id===id);
+  if(!r) return;
+
+  document.getElementById('drawerTitle').textContent = r.title;
+  document.getElementById('drawerSub').textContent = `${VERTICAL_LABEL[r.vertical]||r.vertical} · ${STATUS_LABEL[r.status]||r.status}`;
+
+  const geos = Array.isArray(r.scope_geographies) ? r.scope_geographies.join(', ') : (r.scope_geographies||'—');
+  const days = daysUntil(r.due_date);
+  const dueLabel = r.due_date ? `${fmtDate(r.due_date)}${days!==null?(days<0?` (${Math.abs(days)}d overdue)`:days===0?' (today)':`  (${days}d)`):'' }` : '—';
+
+  const statusActions = buildStatusActions(r);
+
+  document.getElementById('drawerContent').innerHTML = `
+    <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value"><span class="badge ${STATUS_BADGE[r.status]||''}">${STATUS_LABEL[r.status]||r.status}</span></div></div>
+    <div class="detail-row"><div class="detail-label">Indicator / Focus</div><div class="detail-value">${esc(r.indicator_name)}</div></div>
+    <div class="detail-row"><div class="detail-label">Geographies</div><div class="detail-value">${esc(geos)}</div></div>
+    <div class="detail-row"><div class="detail-label">Period</div><div class="detail-value">${esc(r.period||'—')}</div></div>
+    <div class="detail-row"><div class="detail-label">Client</div><div class="detail-value">${esc(r.client_name||'—')}</div></div>
+    <div class="detail-row"><div class="detail-label">Contract Value</div><div class="detail-value" style="color:var(--gold);font-family:var(--ff-mono)">${fmtCurrency(r.contract_value,r.currency)}</div></div>
+    <div class="detail-row"><div class="detail-label">Due Date</div><div class="detail-value" style="${days!==null&&days<0?'color:var(--coral)':''}">${dueLabel}</div></div>
+    <div class="detail-row"><div class="detail-label">Notes</div><div class="detail-value" style="white-space:pre-wrap;color:var(--fog)">${esc(r.notes||'—')}</div></div>
+    <div class="detail-row"><div class="detail-label">Raised</div><div class="detail-value">${fmtDate(r.created_at)}</div></div>
+    ${statusActions}
+  `;
+
+  document.getElementById('drawerBg').classList.add('open');
+  document.getElementById('detailDrawer').classList.add('open');
+}
+
+function buildStatusActions(r){
+  const NEXT_STATUSES = {
+    pending_approval: [{s:'approved',label:'✓ Approve'},{s:'draft',label:'↩ Return to Draft'}],
+    approved:         [{s:'in_progress',label:'▶ Mark In Progress'}],
+    in_progress:      [{s:'review',label:'→ Move to Review'}],
+    review:           [{s:'published',label:'✓ Mark Published'},{s:'in_progress',label:'↩ Back to In Progress'}],
+    published:        [{s:'delivered',label:'✓ Mark Delivered'}],
+  };
+  const actions = NEXT_STATUSES[r.status]||[];
+  if(!actions.length) return '';
+
+  const btns = actions.map(a =>
+    `<button class="action-btn" onclick="transitionRequest('${r.id}','${a.s}')">${a.label}</button>`
+  ).join('');
+
+  return `<div class="detail-actions"><div class="detail-label" style="margin-bottom:8px">Actions</div>${btns}</div>`;
+}
+
+function closeDrawer(){
+  document.getElementById('drawerBg').classList.remove('open');
+  document.getElementById('detailDrawer').classList.remove('open');
+}
+
+async function transitionRequest(id, newStatus){
+  const { data:{ session } } = await _supa.auth.getSession();
+  const token = session?.access_token||'';
+  try{
+    const res = await fetch(`/api/research-requests/${id}/status`, {
+      method:'PATCH',
+      headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+      body: JSON.stringify({status:newStatus})
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      showToast(`Error: ${err.detail||res.status}`, 4000);
+      return;
+    }
+    showToast(`✓ Status updated to ${STATUS_LABEL[newStatus]}`);
+    closeDrawer();
+    await loadRequests();
+  }catch(e){
+    showToast('Request failed', 3000);
+  }
+}
+
+// ── New Request modal ─────────────────────────────────────────────────────────
+function openNewRequestModal(){
+  document.getElementById('newReqModal').classList.add('open');
+}
+function closeNewRequestModal(){
+  document.getElementById('newReqModal').classList.remove('open');
+}
+document.getElementById('newReqModal').addEventListener('click', e => {
+  if(e.target === document.getElementById('newReqModal')) closeNewRequestModal();
+});
+
+async function submitNewRequest(){
+  const title     = document.getElementById('rrTitle').value.trim();
+  const vertical  = document.getElementById('rrVertical').value;
+  const indicator = document.getElementById('rrIndicator').value.trim();
+  const geosRaw   = document.getElementById('rrGeos').value.trim();
+  const period    = document.getElementById('rrPeriod').value.trim();
+  const client    = document.getElementById('rrClient').value.trim();
+  const value     = document.getElementById('rrValue').value;
+  const due       = document.getElementById('rrDue').value;
+  const notes     = document.getElementById('rrNotes').value.trim();
+
+  if(!title||!vertical||!indicator){
+    showToast('Title, vertical, and indicator are required', 3000);
+    return;
+  }
+
+  const geos = geosRaw ? geosRaw.split(',').map(g=>g.trim()).filter(Boolean) : [];
+
+  const { data:{ session } } = await _supa.auth.getSession();
+  const token = session?.access_token||'';
+
+  try{
+    const res = await fetch('/api/research-requests', {
+      method:'POST',
+      headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+      body: JSON.stringify({
+        vertical, title, indicator_name:indicator,
+        scope_geographies:geos, period, client_name:client,
+        contract_value: value ? Number(value) : null,
+        due_date: due||null, notes,
+      })
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      showToast(`Error: ${err.detail||res.status}`, 4000);
+      return;
+    }
+    showToast('✓ Research request created');
+    closeNewRequestModal();
+    // Clear form
+    ['rrTitle','rrIndicator','rrGeos','rrPeriod','rrClient','rrValue','rrDue','rrNotes']
+      .forEach(id => document.getElementById(id).value='');
+    document.getElementById('rrVertical').value='';
+    await loadRequests();
+  }catch(e){
+    showToast('Request failed', 3000);
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

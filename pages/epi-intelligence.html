@@ -148,6 +148,25 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
 .deliv-card-type{font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:2px 7px;border-radius:10px;background:var(--acc-dim);color:var(--acc);border:1px solid var(--acc-glow)}
 .deliv-card-dl{font-size:12px;color:var(--fog);text-decoration:none;padding:3px 7px;border:1px solid var(--rule2);border-radius:5px;transition:border-color .15s,color .15s}
 .deliv-card-dl:hover{border-color:var(--acc-glow);color:var(--acc)}
+.rr-card{background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2);padding:14px 16px;margin:6px 16px;cursor:pointer;transition:border-color .15s}
+.rr-card:hover{border-color:var(--acc)}
+.rr-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
+.rr-card-title{font-size:13px;font-weight:500;color:var(--white);line-height:1.3}
+.rr-status-badge{font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:.8px;padding:2px 7px;border-radius:8px;white-space:nowrap;flex-shrink:0}
+.rr-status-draft{background:rgba(74,85,104,.3);color:var(--fog)}
+.rr-status-pending_approval{background:rgba(200,169,110,.15);color:var(--gold);border:1px solid rgba(200,169,110,.3)}
+.rr-status-approved{background:rgba(76,255,145,.12);color:#4cff91;border:1px solid rgba(76,255,145,.2)}
+.rr-status-in_progress{background:rgba(74,127,232,.15);color:#4a7fe8;border:1px solid rgba(74,127,232,.25)}
+.rr-status-review{background:rgba(155,114,232,.15);color:var(--violet);border:1px solid rgba(155,114,232,.25)}
+.rr-status-published{background:rgba(46,196,182,.15);color:var(--acc);border:1px solid rgba(46,196,182,.25)}
+.rr-status-delivered{background:rgba(200,169,110,.25);color:var(--gold);border:1px solid rgba(200,169,110,.4)}
+.rr-card-meta{display:flex;flex-wrap:wrap;gap:12px}
+.rr-meta-item{font-family:var(--ff-mono);font-size:10px;color:var(--fog)}
+.rr-meta-item strong{color:var(--white)}
+.rr-approve-btn{padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;border:1px solid rgba(76,255,145,.3);background:rgba(76,255,145,.08);color:#4cff91;font-family:var(--ff-body);transition:all .15s;margin-top:8px;margin-right:6px}
+.rr-approve-btn:hover{background:rgba(76,255,145,.15)}
+.rr-progress-btn{padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;border:1px solid rgba(74,127,232,.3);background:rgba(74,127,232,.08);color:#4a7fe8;font-family:var(--ff-body);transition:all .15s;margin-top:8px;margin-right:6px}
+.rr-progress-btn:hover{background:rgba(74,127,232,.15)}
 .deliv-tabs{display:flex;gap:0;border-bottom:1px solid var(--rule)}
 .dtab{display:flex;align-items:center;gap:7px;padding:11px 18px;font-size:12px;color:var(--fog);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--ff-body);white-space:nowrap}
 .dtab:hover{color:var(--white)}
@@ -259,6 +278,7 @@ input[type="date"].mf-input{color-scheme:dark}
       <button class="nav-item" onclick="showSection('factsheets',this)"><span class="icon">📄</span>Factsheets</button>
       <button class="nav-item" onclick="showSection('sources',this)"><span class="icon">🔗</span>Data Sources</button>
       <button class="nav-item" id="navUpload" onclick="showSection('deliverables',this)" style="display:none"><span class="icon">📦</span>Deliverables</button>
+      <button class="nav-item" id="navRequests" onclick="showSection('requests',this)" style="display:none"><span class="icon">🔬</span>Research Requests</button>
     </nav>
     <div class="sidebar-footer">
       <div class="user-row">
@@ -319,6 +339,22 @@ input[type="date"].mf-input{color-scheme:dark}
               <thead><tr><th>Metric</th><th>Geography</th><th>Period</th><th>Value</th><th>Unit</th><th>Change</th><th>As of</th></tr></thead>
               <tbody id="toplineBody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Research Requests section (head/senior only) -->
+      <div class="section-wrap" id="section-requests" style="display:none">
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Research Requests</div>
+            <div class="section-actions">
+              <span style="font-family:var(--ff-mono);font-size:10px;color:var(--fog)" id="rrCount"></span>
+              <button class="tab-btn" id="newRrBtn" style="display:none;margin-left:10px" onclick="openNewRrModal()">+ New Request</button>
+            </div>
+          </div>
+          <div id="rrList" style="padding:8px 0">
+            <div class="empty">Loading…</div>
           </div>
         </div>
       </div>
@@ -646,6 +682,10 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
     // Show upload nav for senior + head
     if(p.role === 'senior' || p.role === 'head'){
       document.getElementById('navUpload').style.display='flex';
+      if(['head','senior','master'].includes(p.role)){
+        const rrBtn = document.getElementById('navRequests');
+        if(rrBtn) rrBtn.style.display='flex';
+      }
     }
     // Show new report button for all roles
     document.getElementById('newReportBtn').style.display='inline-block';
@@ -656,6 +696,7 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
     loadDeliverablesList();
     loadPublishedDeliverables();
     loadTopline();
+    loadResearchRequests();
   }
 
   /* ── KPIs ── */
@@ -1281,6 +1322,149 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
   }
   window.loadTopline = loadTopline;
 
+
+  /* ── Research Requests ── */
+  const RR_STATUS_LABEL = {
+    draft:'Draft', pending_approval:'Pending Approval', approved:'Approved',
+    in_progress:'In Progress', review:'In Review', published:'Published', delivered:'Delivered'
+  };
+
+  async function loadResearchRequests(){
+    const countEl = document.getElementById('rrCount');
+    const listEl  = document.getElementById('rrList');
+    if(!listEl) return;
+    const role = window._userRole||'';
+    if(!['head','senior','master'].includes(role)){ return; }
+
+    // Show head new-request button
+    if(role==='head'||role==='master'){
+      const btn = document.getElementById('newRrBtn');
+      if(btn) btn.style.display='';
+    }
+
+    const { data:{ session } } = await window._supa.auth.getSession();
+    const token = session?.access_token||'';
+    let rows = [];
+    try{
+      const res = await fetch(`/api/research-requests/${VERTICAL}`, {
+        headers:{'Authorization':`Bearer ${token}`}
+      });
+      if(res.ok){
+        const json = await res.json();
+        rows = json.requests || [];
+      }
+    }catch(_){}
+
+    if(countEl) countEl.textContent = rows.length ? `${rows.length} request${rows.length!==1?'s':''}` : '';
+    if(!rows.length){
+      listEl.innerHTML = '<div class="empty" style="padding:16px">No research requests yet.</div>';
+      return;
+    }
+
+    listEl.innerHTML = rows.map(r => {
+      const geos = Array.isArray(r.scope_geographies) ? r.scope_geographies.join(', ') : (r.scope_geographies||'');
+      const badgeClass = `rr-status-${(r.status||'draft').replace(/[^a-z_]/g,'')}`;
+      const label = RR_STATUS_LABEL[r.status] || r.status;
+      const daysLeft = r.due_date ? Math.round((new Date(r.due_date)-new Date())/86400000) : null;
+      const dueStr = daysLeft!==null ? (daysLeft<0?`<span style="color:var(--coral)">${Math.abs(daysLeft)}d overdue</span>`:daysLeft===0?'<span style="color:var(--gold)">Due today</span>':`${daysLeft}d left`) : '';
+
+      // Actions based on role + status
+      let actions = '';
+      if((role==='head'||role==='master') && r.status==='pending_approval'){
+        actions += `<button class="rr-approve-btn" onclick="rrTransition('${r.id}','approved',event)">✓ Approve</button>`;
+      }
+      if((role==='head'||role==='master') && r.status==='approved'){
+        actions += `<button class="rr-progress-btn" onclick="rrTransition('${r.id}','in_progress',event)">▶ Start Production</button>`;
+      }
+      if((role==='head'||role==='master') && r.status==='review'){
+        actions += `<button class="rr-approve-btn" onclick="rrTransition('${r.id}','published',event)">✓ Mark Published</button>`;
+      }
+
+      return `<div class="rr-card">
+        <div class="rr-card-header">
+          <div class="rr-card-title">${esc(r.title)}</div>
+          <span class="rr-status-badge ${badgeClass}">${label}</span>
+        </div>
+        <div class="rr-card-meta">
+          <span class="rr-meta-item"><strong>${esc(r.indicator_name)}</strong></span>
+          ${geos ? `<span class="rr-meta-item">🌍 ${esc(geos)}</span>` : ''}
+          ${r.period ? `<span class="rr-meta-item">📅 ${esc(r.period)}</span>` : ''}
+          ${r.client_name ? `<span class="rr-meta-item">🏢 ${esc(r.client_name)}</span>` : ''}
+          ${dueStr ? `<span class="rr-meta-item">${dueStr}</span>` : ''}
+          ${r.contract_value ? `<span class="rr-meta-item" style="color:var(--gold)">₹${Number(r.contract_value).toLocaleString('en-IN')}</span>` : ''}
+        </div>
+        ${actions ? `<div>${actions}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+  window.loadResearchRequests = loadResearchRequests;
+
+  async function rrTransition(id, newStatus, evt){
+    if(evt) evt.stopPropagation();
+    const { data:{ session } } = await window._supa.auth.getSession();
+    const token = session?.access_token||'';
+    try{
+      const res = await fetch(`/api/research-requests/${id}/status`, {
+        method:'PATCH',
+        headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body: JSON.stringify({status:newStatus})
+      });
+      if(res.ok){
+        showToast(`✓ Status → ${RR_STATUS_LABEL[newStatus]||newStatus}`);
+        setTimeout(loadResearchRequests, 400);
+      } else {
+        const err = await res.json().catch(()=>({}));
+        showToast(`Error: ${err.detail||res.status}`, 4000);
+      }
+    }catch{
+      showToast('Request failed', 3000);
+    }
+  }
+
+  function openNewRrModal(){
+    document.getElementById('newRrModalBg').style.display='flex';
+  }
+  function closeNewRrModal(){
+    document.getElementById('newRrModalBg').style.display='none';
+  }
+
+  async function submitNewRr(){
+    const title     = document.getElementById('rrModalTitle').value.trim();
+    const indicator = document.getElementById('rrModalIndicator').value.trim();
+    const geosRaw   = document.getElementById('rrModalGeos').value.trim();
+    const period    = document.getElementById('rrModalPeriod').value.trim();
+    const client    = document.getElementById('rrModalClient').value.trim();
+    const value     = document.getElementById('rrModalValue').value;
+    const due       = document.getElementById('rrModalDue').value;
+    const notes     = document.getElementById('rrModalNotes').value.trim();
+    if(!title||!indicator){ showToast('Title and indicator are required', 3000); return; }
+    const geos = geosRaw ? geosRaw.split(',').map(g=>g.trim()).filter(Boolean) : [];
+    const { data:{ session } } = await window._supa.auth.getSession();
+    const token = session?.access_token||'';
+    try{
+      const res = await fetch('/api/research-requests', {
+        method:'POST',
+        headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body: JSON.stringify({
+          vertical:VERTICAL, title, indicator_name:indicator,
+          scope_geographies:geos, period, client_name:client,
+          contract_value: value ? Number(value) : null,
+          due_date: due||null, notes,
+        })
+      });
+      if(res.ok){
+        showToast('✓ Research request created');
+        closeNewRrModal();
+        ['rrModalTitle','rrModalIndicator','rrModalGeos','rrModalPeriod','rrModalClient','rrModalValue','rrModalDue','rrModalNotes']
+          .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+        setTimeout(loadResearchRequests, 400);
+      } else {
+        const err = await res.json().catch(()=>({}));
+        showToast(`Error: ${err.detail||res.status}`, 4000);
+      }
+    }catch{ showToast('Request failed', 3000); }
+  }
+
   /* ── Navigation ── */
   const sections = ['dashboard','reports','factsheets','sources','deliverables'];
   const titles = {dashboard:'Dashboard',reports:'Reports',factsheets:'Factsheets',sources:'Data Sources',deliverables:'Deliverables Upload Hub'};
@@ -1318,5 +1502,53 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
   boot();
 }());
 </script>
+
+<!-- Research Request Modal -->
+<div class="modal-bg" id="newRrModalBg" style="display:none;position:fixed;inset:0;background:rgba(6,8,13,.85);z-index:100;align-items:center;justify-content:center">
+  <div style="background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);width:min(520px,94vw);max-height:90vh;overflow-y:auto;padding:28px 28px 24px">
+    <div style="font-family:var(--ff-serif);font-size:20px;color:var(--white);margin-bottom:20px">New Research Request</div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Title *</label>
+      <input id="rrModalTitle" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none" placeholder="e.g. Dengue Incidence — South Asia Q4 2026">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Indicator / Research Focus *</label>
+      <input id="rrModalIndicator" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none" placeholder="e.g. Dengue Incidence Rate">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Geographies (comma-separated)</label>
+      <input id="rrModalGeos" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none" placeholder="e.g. India, Bangladesh, Sri Lanka">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Period</label>
+        <input id="rrModalPeriod" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none" placeholder="e.g. Q4 2026">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Client Name</label>
+        <input id="rrModalClient" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none" placeholder="Client or organisation">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Contract Value (INR)</label>
+        <input id="rrModalValue" type="number" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none" placeholder="0">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Due Date</label>
+        <input id="rrModalDue" type="date" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none;color-scheme:dark">
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Notes / Scope briefing</label>
+      <textarea id="rrModalNotes" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none;resize:vertical;min-height:70px" placeholder="Scope details, specific asks, context from sales team…"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+      <button onclick="closeNewRrModal()" style="padding:9px 18px;border-radius:var(--r);font-family:var(--ff-body);font-size:13px;cursor:pointer;background:transparent;color:var(--fog);border:1px solid var(--rule2)">Cancel</button>
+      <button onclick="submitNewRr()" style="padding:9px 18px;border-radius:var(--r);font-family:var(--ff-body);font-size:13px;cursor:pointer;background:var(--acc);color:var(--ink);border:none;font-weight:500">Create Request</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

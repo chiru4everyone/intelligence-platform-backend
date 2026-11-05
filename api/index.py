@@ -312,6 +312,7 @@ _MARKETS_HTML    = _load_page("markets-intelligence.html")
 _PACKAGING_HTML  = _load_page("packaging-intelligence.html")
 _STARTUPS_HTML   = _load_page("startup-intelligence.html")
 _PREVIEW_HTML    = _load_page("preview.html")
+_MASTER_HTML     = _load_page("master-dashboard.html")
 
 # ── FastAPI app (no lifespan — serverless safe) ───────────────────────────────
 app = FastAPI(
@@ -2187,6 +2188,241 @@ async def get_topline(request: Request, vertical: str, limit: int = 50):
     return {"vertical": vertical, "rows": resp.data or [], "count": len(resp.data or [])}
 
 
+# ── Research Requests ────────────────────────────────────────────────────────
+
+VALID_RR_STATUSES = {
+    "draft", "pending_approval", "approved",
+    "in_progress", "review", "published", "delivered"
+}
+
+# Status transitions: (current_status, role) → allowed next statuses
+RR_TRANSITIONS = {
+    ("draft",            "senior"): {"pending_approval"},
+    ("draft",            "head"):   {"pending_approval", "approved"},
+    ("draft",            "master"): VALID_RR_STATUSES,
+    ("pending_approval", "head"):   {"approved", "draft"},
+    ("pending_approval", "master"): VALID_RR_STATUSES,
+    ("approved",         "head"):   {"in_progress", "draft"},
+    ("approved",         "master"): VALID_RR_STATUSES,
+    ("in_progress",      "head"):   {"review", "approved"},
+    ("in_progress",      "master"): VALID_RR_STATUSES,
+    ("review",           "head"):   {"published", "in_progress"},
+    ("review",           "master"): VALID_RR_STATUSES,
+    ("published",        "head"):   {"delivered"},
+    ("published",        "master"): VALID_RR_STATUSES,
+    ("delivered",        "master"): VALID_RR_STATUSES,
+}
+
+
+@app.post("/api/research-requests", tags=["research-requests"])
+async def create_research_request(request: Request):
+    """Create a research request. head or senior only."""
+    profile = _resolve_profile(request)
+    if profile["role"] not in ("head", "senior", "master"):
+        raise HTTPException(status_code=403, detail="head, senior, or master role required")
+
+    body = await request.json()
+
+    vertical = body.get("vertical", "").strip()
+    if not vertical:
+        raise HTTPException(status_code=400, detail="vertical is required")
+
+    # senior can only create for their own vertical
+    if profile["role"] == "senior" and profile.get("vertical") != vertical:
+        raise HTTPException(status_code=403, detail="senior can only create requests for their own vertical")
+
+    title          = body.get("title", "").strip()
+    indicator_name = body.get("indicator_name", "").strip()
+    if not title or not indicator_name:
+        raise HTTPException(status_code=400, detail="title and indicator_name are required")
+
+    # senior starts as pending_approval; head/master can start as approved
+    initial_status = "pending_approval" if profile["role"] == "senior" else "approved"
+
+    payload = {
+        "vertical":           vertical,
+        "title":              title,
+        "indicator_name":     indicator_name,
+        "scope_geographies":  body.get("scope_geographies", []),
+        "period":             body.get("period", ""),
+        "client_name":        body.get("client_name", ""),
+        "contract_value":     body.get("contract_value"),
+        "currency":           body.get("currency", "INR"),
+        "crm_deal_id":        body.get("crm_deal_id"),
+        "due_date":           body.get("due_date"),
+        "notes":              body.get("notes", ""),
+        "status":             initial_status,
+        "raised_by":          profile["id"],
+        "assigned_analyst":   body.get("assigned_analyst"),
+        "assigned_senior":    body.get("assigned_senior"),
+    }
+
+    # head/master can directly approve — record approver
+    if initial_status == "approved":
+        payload["approved_by"] = profile["id"]
+
+    supa = _get_supa_service()
+    try:
+        resp = supa.table("research_requests").insert(payload).execute()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Insert failed: {exc}")
+
+    rr = resp.data[0] if resp.data else payload
+    _log_activity(supa,
+        table_name="research_requests",
+        record_id=rr.get("id"),
+        actor=profile,
+        action="create",
+        new_value=initial_status,
+        note=f"Research request created: {title}",
+        vertical=vertical,
+    )
+    return rr
+
+
+@app.get("/api/research-requests/{vertical}", tags=["research-requests"])
+async def list_research_requests(vertical: str, request: Request):
+    """List research requests for a vertical (or 'all' for master)."""
+    profile = _resolve_profile(request)
+    role = profile["role"]
+
+    supa = _get_supa_service()
+
+    # master sees everything; others see their vertical only
+    if role == "master":
+        if vertical == "all":
+            query = supa.table("research_requests").select("*").order("created_at", desc=True)
+        else:
+            query = supa.table("research_requests").select("*").eq("vertical", vertical).order("created_at", desc=True)
+    else:
+        if profile.get("vertical") != vertical:
+            raise HTTPException(status_code=403, detail="Access denied for this vertical")
+        query = supa.table("research_requests").select("*").eq("vertical", vertical).order("created_at", desc=True)
+
+    try:
+        resp = query.execute()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Query failed: {exc}")
+
+    return {"vertical": vertical, "requests": resp.data or [], "count": len(resp.data or [])}
+
+
+@app.patch("/api/research-requests/{rr_id}/status", tags=["research-requests"])
+async def update_research_request_status(rr_id: str, request: Request):
+    """Update research request status or fields. Role-gated transitions."""
+    profile = _resolve_profile(request)
+    role = profile["role"]
+
+    if role not in ("head", "master"):
+        # senior can only retract their own draft
+        body = await request.json()
+        new_status = body.get("status", "")
+        if role != "senior" or new_status not in ("draft",):
+            raise HTTPException(status_code=403, detail="Insufficient role for this transition")
+
+    body = await request.json() if not locals().get("body") else body
+    new_status = body.get("status", "").strip()
+
+    if new_status and new_status not in VALID_RR_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {new_status}")
+
+    supa = _get_supa_service()
+    try:
+        row_resp = supa.table("research_requests").select("*").eq("id", rr_id).single().execute()
+    except Exception:
+        raise HTTPException(status_code=404, detail="Research request not found")
+
+    rr = row_resp.data
+    if not rr:
+        raise HTTPException(status_code=404, detail="Research request not found")
+
+    # Vertical access check
+    if role != "master" and rr["vertical"] != profile.get("vertical"):
+        raise HTTPException(status_code=403, detail="Access denied for this vertical")
+
+    update_payload = {}
+
+    if new_status and new_status != rr["status"]:
+        allowed = RR_TRANSITIONS.get((rr["status"], role), set())
+        if new_status not in allowed:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Cannot transition from '{rr['status']}' to '{new_status}' as {role}"
+            )
+        update_payload["status"] = new_status
+        if new_status == "approved":
+            update_payload["approved_by"] = profile["id"]
+
+    # Allow updating assignment fields
+    for field in ("assigned_analyst", "assigned_senior", "due_date", "notes",
+                  "contract_value", "client_name", "scope_geographies", "period"):
+        if field in body:
+            update_payload[field] = body[field]
+
+    if not update_payload:
+        return rr
+
+    update_payload["updated_at"] = datetime.datetime.utcnow().isoformat()
+
+    try:
+        up_resp = supa.table("research_requests").update(update_payload).eq("id", rr_id).execute()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Update failed: {exc}")
+
+    updated = up_resp.data[0] if up_resp.data else {**rr, **update_payload}
+
+    if new_status and new_status != rr["status"]:
+        _log_activity(supa,
+            table_name="research_requests",
+            record_id=rr_id,
+            actor=profile,
+            action="status_change",
+            field_name="status",
+            old_value=rr["status"],
+            new_value=new_status,
+            note=body.get("note", ""),
+            vertical=rr["vertical"],
+        )
+
+    return updated
+
+
+@app.get("/api/research-requests-all", tags=["research-requests"])
+async def list_all_research_requests(request: Request):
+    """Master-only: list all research requests across all verticals with revenue aggregates."""
+    profile = _resolve_profile(request)
+    if profile["role"] != "master":
+        raise HTTPException(status_code=403, detail="master role required")
+
+    supa = _get_supa_service()
+    try:
+        resp = supa.table("research_requests").select("*").order("created_at", desc=True).execute()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Query failed: {exc}")
+
+    rows = resp.data or []
+
+    # Aggregate revenue by status
+    revenue = {}
+    for r in rows:
+        s = r.get("status", "unknown")
+        cv = r.get("contract_value") or 0
+        revenue[s] = revenue.get(s, 0) + float(cv)
+
+    # Count by vertical
+    by_vertical = {}
+    for r in rows:
+        v = r.get("vertical", "unknown")
+        by_vertical[v] = by_vertical.get(v, 0) + 1
+
+    return {
+        "requests":    rows,
+        "count":       len(rows),
+        "revenue_by_status": revenue,
+        "count_by_vertical": by_vertical,
+    }
+
+
 # ── /workflow — Gantt dashboard page ─────────────────────────────────────────
 @app.get("/workflow", response_class=HTMLResponse, include_in_schema=False)
 async def workflow_page():
@@ -2252,3 +2488,10 @@ async def startups_page():
 async def preview_page():
     """Read-only preview of all 6 intelligence workspaces — no login required."""
     return HTMLResponse(content=_PREVIEW_HTML)
+
+
+@app.get("/master", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/master/", response_class=HTMLResponse, include_in_schema=False)
+async def master_dashboard_page():
+    """Master command centre — master role only (enforced client-side + API)."""
+    return HTMLResponse(content=_inject_supa(_MASTER_HTML))
