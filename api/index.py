@@ -30,6 +30,12 @@ _LOGIN_HTML = r"""<!doctype html>
 <title>Intelligence Platform — Sign In</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+<script>
+/* Supabase credentials — injected by FastAPI from env vars */
+window.__SUPA_URL__ = '{SUPA_URL}';
+window.__SUPA_KEY__ = '{SUPA_KEY}';
+</script>
 <style>
 :root{--ink:#080a0f;--ink2:#0d1017;--ink3:#131720;--ink4:#1a2030;--rule:rgba(255,255,255,.06);--rule2:rgba(255,255,255,.12);--white:#f0f2f7;--fog:#8a95a8;--ghost:#4a5568;--teal:#2ec4b6;--gold:#c8a96e;--coral:#e85d4a;--violet:#9b72e8;--agri:#4caf78;--sapph:#4a7fe8;--role-analyst:#4a7fe8;--role-senior:#9b72e8;--role-head:#c8a96e;--ff-serif:'DM Serif Display',Georgia,serif;--ff-body:'Inter',system-ui,sans-serif;--ff-mono:'JetBrains Mono',monospace;--r:6px;--r2:10px;color-scheme:dark}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -191,8 +197,65 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
   passInput.addEventListener('input',()=>passField.classList.remove('has-error'));
   let toastTimer;
   function showToast(msg,icon='✦'){toast.innerHTML='<span>'+icon+'</span> '+msg;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),3200)}
-  form.addEventListener('submit',e=>{e.preventDefault();if(!validate())return;const c=ROLES[activeRole],orig=signInBtn.textContent;signInBtn.textContent='Signing in…';signInBtn.disabled=true;setTimeout(()=>{signInBtn.textContent=orig;signInBtn.disabled=false;showToast('Welcome back — '+c.label+' session started','✓');setTimeout(()=>{window.location.href='/docs'},1200)},900)});
-  ssoBtn.addEventListener('click',()=>showToast('SSO not configured for this workspace','⚠'));
+  /* ── Supabase client (env vars injected at build / runtime) ── */
+  const SUPA_URL = window.__SUPA_URL__ || '';
+  const SUPA_KEY = window.__SUPA_KEY__ || '';
+  let supabase = null;
+  if(SUPA_URL && SUPA_KEY && window.supabase){
+    supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  }
+
+  async function signIn(email, password, role) {
+    if(!supabase) {
+      /* Supabase not configured — show setup hint */
+      showToast('Configure SUPABASE_URL & SUPABASE_KEY in Vercel env vars', '⚠');
+      return false;
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if(error) { showToast(error.message, '⚠'); return false; }
+
+    /* Log the session with the selected role */
+    try {
+      await supabase.from('analyst_sessions').insert({
+        user_id: data.user.id,
+        role_at_login: role,
+        vertical: 'all',
+        user_agent: navigator.userAgent,
+        session_token: data.session.access_token.slice(-32)
+      });
+    } catch(_) { /* non-fatal */ }
+
+    /* Store role in localStorage for downstream pages */
+    try { localStorage.setItem('ip_role', role); localStorage.setItem('ip_user', data.user.email); } catch(_){}
+    return true;
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if(!validate()) return;
+    const c = ROLES[activeRole], orig = signInBtn.textContent;
+    signInBtn.textContent = 'Signing in…';
+    signInBtn.disabled = true;
+    try {
+      const ok = await signIn(emailInput.value.trim(), passInput.value, activeRole);
+      if(ok) {
+        showToast('Welcome back — ' + c.label + ' session started', '✓');
+        setTimeout(() => { window.location.href = '/docs'; }, 1000);
+      }
+    } finally {
+      signInBtn.textContent = orig;
+      signInBtn.disabled = false;
+    }
+  });
+
+  ssoBtn.addEventListener('click', async () => {
+    if(!supabase){ showToast('Configure Supabase env vars first', '⚠'); return; }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    });
+    if(error) showToast(error.message, '⚠');
+  });
   applyRole('analyst');
 }());
 </script>
@@ -237,8 +300,11 @@ except Exception:
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def root():
-    """Login page — served as the homepage."""
-    return HTMLResponse(content=_LOGIN_HTML)
+    """Login page — served as the homepage. Supabase credentials injected from env."""
+    supa_url = os.environ.get("SUPABASE_URL", "")
+    supa_key = os.environ.get("SUPABASE_ANON_KEY", "")
+    html = _LOGIN_HTML.replace("'{SUPA_URL}'", f"'{supa_url}'").replace("'{SUPA_KEY}'", f"'{supa_key}'")
+    return HTMLResponse(content=html)
 
 
 @app.get("/health", tags=["health"])
