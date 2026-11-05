@@ -22,6 +22,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from functools import wraps
 from typing import Optional
+import hashlib
+import hmac
+import secrets
+import time
 
 # ── Login page HTML (embedded — no filesystem dependency on serverless) ──────
 _LOGIN_HTML = r"""<!doctype html>
@@ -487,3 +491,441 @@ async def deactivate_user(request: Request, user_id: str):
         raise HTTPException(status_code=503, detail="Auth service not configured")
     supa.table("profiles").update({"is_active": False}).eq("id", user_id).execute()
     return {"status": "deactivated", "user_id": user_id}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MASTER ADMIN LAYER
+# Superuser access — above all analyst roles.
+# Credentials stored in env vars only (never in the database).
+# Session token is a signed HMAC — no DB needed to verify.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_MASTER_HTML = r"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Master Admin — Intelligence Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#06080d;--ink2:#0c0f16;--ink3:#11151e;--ink4:#171c28;--rule:rgba(255,255,255,.06);--rule2:rgba(255,255,255,.1);--white:#eef0f5;--fog:#7a8599;--ghost:#3d4a60;--red:#e85d4a;--gold:#c8a96e;--teal:#2ec4b6;--r:6px;color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--ink);color:var(--white);-webkit-font-smoothing:antialiased}
+body{display:flex;align-items:center;justify-content:center;padding:24px;min-height:100vh}
+.card{width:100%;max-width:360px;background:var(--ink2);border:1px solid var(--rule2);border-radius:12px;padding:40px 36px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),var(--teal));opacity:.7}
+.lock-icon{font-size:28px;margin-bottom:16px;display:block;text-align:center}
+.heading{font-size:17px;font-weight:600;color:var(--white);text-align:center;margin-bottom:4px;letter-spacing:-.2px}
+.sub{font-size:12px;color:var(--fog);text-align:center;margin-bottom:32px;font-family:'JetBrains Mono',monospace;letter-spacing:.5px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:var(--fog)}
+.field input{width:100%;padding:11px 14px;background:var(--ink3);border:1.5px solid var(--rule2);border-radius:var(--r);font-family:'Inter',monospace;font-size:13.5px;color:var(--white);outline:none;transition:border-color .2s,box-shadow .2s}
+.field input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,169,110,.12)}
+.field input::placeholder{color:var(--ghost)}
+.btn{width:100%;margin-top:8px;padding:13px;background:var(--gold);border:none;border-radius:var(--r);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:#0c0a06;cursor:pointer;letter-spacing:.2px;transition:opacity .15s}
+.btn:hover{opacity:.88}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.error{margin-top:14px;padding:10px 14px;background:rgba(232,93,74,.08);border:1px solid rgba(232,93,74,.25);border-radius:var(--r);font-size:11.5px;color:var(--red);display:none;text-align:center}
+.error.show{display:block}
+.warning{margin-top:20px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--ghost);text-align:center;letter-spacing:.5px;line-height:1.6}
+
+/* Dashboard (hidden until login) */
+.dashboard{display:none;width:100%;max-width:900px;flex-direction:column;gap:20px}
+.dash-header{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;background:var(--ink2);border:1px solid var(--rule2);border-radius:12px}
+.dash-title{font-size:15px;font-weight:600;color:var(--white)}
+.dash-sub{font-size:11px;color:var(--fog);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.logout-btn{padding:7px 16px;background:transparent;border:1px solid var(--rule2);border-radius:var(--r);font-size:12px;color:var(--fog);cursor:pointer;transition:color .15s,border-color .15s}
+.logout-btn:hover{color:var(--white);border-color:var(--rule2)}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat-card{padding:18px 20px;background:var(--ink2);border:1px solid var(--rule2);border-radius:10px}
+.stat-val{font-size:24px;font-weight:600;color:var(--white);margin-bottom:4px}
+.stat-label{font-size:11px;color:var(--fog);font-family:'JetBrains Mono',monospace;letter-spacing:.5px}
+.section{background:var(--ink2);border:1px solid var(--rule2);border-radius:10px;overflow:hidden}
+.section-head{padding:16px 20px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between}
+.section-title{font-size:13px;font-weight:600;color:var(--white)}
+.section-action{font-size:11px;color:var(--teal);cursor:pointer;background:none;border:none;font-family:'Inter',sans-serif}
+table{width:100%;border-collapse:collapse}
+th{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fog);padding:10px 20px;text-align:left;border-bottom:1px solid var(--rule)}
+td{padding:11px 20px;font-size:12.5px;color:var(--white);border-bottom:1px solid var(--rule)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.018)}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:500}
+.badge-analyst{background:rgba(74,127,232,.12);color:#4a7fe8;border:1px solid rgba(74,127,232,.2)}
+.badge-senior{background:rgba(155,114,232,.12);color:#9b72e8;border:1px solid rgba(155,114,232,.2)}
+.badge-head{background:rgba(200,169,110,.12);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
+.badge-active{background:rgba(46,196,182,.1);color:#2ec4b6;border:1px solid rgba(46,196,182,.2)}
+.badge-inactive{background:rgba(232,93,74,.1);color:#e85d4a;border:1px solid rgba(232,93,74,.2)}
+.action-btn{padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid var(--rule2);background:transparent;color:var(--fog);font-family:'Inter',sans-serif;transition:color .15s}
+.action-btn:hover{color:var(--white)}
+.action-btn.danger{color:var(--red);border-color:rgba(232,93,74,.3)}
+.empty-row{text-align:center;color:var(--fog);font-style:italic;padding:28px}
+select.inline-select{background:var(--ink4);border:1px solid var(--rule2);color:var(--white);border-radius:4px;padding:3px 6px;font-size:11px;font-family:'JetBrains Mono',monospace}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink4);border:1px solid var(--rule2);border-radius:20px;padding:9px 18px;font-size:12px;color:var(--white);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:999}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:700px){.stats-row{grid-template-columns:1fr 1fr}table{font-size:11px}th,td{padding:9px 12px}}
+</style>
+</head>
+<body>
+
+<!-- ── Login card ── -->
+<div class="card" id="loginCard">
+  <span class="lock-icon">🔐</span>
+  <div class="heading">Master Admin</div>
+  <div class="sub">INTELLIGENCE PLATFORM · SUPERUSER</div>
+  <form id="masterForm" novalidate>
+    <div class="field">
+      <label>Admin email</label>
+      <input type="email" id="mEmail" placeholder="master@platform.com" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="mPass" placeholder="••••••••••••" autocomplete="off">
+    </div>
+    <button type="submit" class="btn" id="mBtn">Access Master Console</button>
+  </form>
+  <div class="error" id="mError">Invalid credentials. Access denied.</div>
+  <div class="warning">⚠ Restricted access · All sessions are logged</div>
+</div>
+
+<!-- ── Dashboard ── -->
+<div class="dashboard" id="dashboard">
+  <div class="dash-header">
+    <div>
+      <div class="dash-title">Master Admin Console</div>
+      <div class="dash-sub">INTELLIGENCE PLATFORM · SUPERUSER SESSION</div>
+    </div>
+    <button class="logout-btn" onclick="logout()">Sign out</button>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-val" id="statTotal">—</div><div class="stat-label">Total users</div></div>
+    <div class="stat-card"><div class="stat-val" id="statActive">—</div><div class="stat-label">Active</div></div>
+    <div class="stat-card"><div class="stat-val" id="statSessions">—</div><div class="stat-label">Sessions today</div></div>
+    <div class="stat-card"><div class="stat-val" id="statVerticals">6</div><div class="stat-label">Verticals</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">Analyst Accounts</div>
+      <button class="section-action" onclick="refreshUsers()">↻ Refresh</button>
+    </div>
+    <table>
+      <thead><tr><th>Name / Email</th><th>Role</th><th>Vertical</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="userTable"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">Recent Login Sessions</div>
+      <button class="section-action" onclick="refreshSessions()">↻ Refresh</button>
+    </div>
+    <table>
+      <thead><tr><th>Email</th><th>Role at login</th><th>Vertical</th><th>When</th></tr></thead>
+      <tbody id="sessionTable"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  let masterToken = '';
+
+  /* ── login ── */
+  document.getElementById('masterForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('mBtn');
+    const err = document.getElementById('mError');
+    btn.disabled = true; btn.textContent = 'Verifying…'; err.classList.remove('show');
+    try {
+      const res = await fetch('/api/master/login', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          email: document.getElementById('mEmail').value.trim(),
+          password: document.getElementById('mPass').value
+        })
+      });
+      if(!res.ok){ err.classList.add('show'); return; }
+      const { token } = await res.json();
+      masterToken = token;
+      sessionStorage.setItem('_mt', token);
+      showDashboard();
+    } catch(_){ err.classList.add('show'); }
+    finally { btn.disabled=false; btn.textContent='Access Master Console'; }
+  });
+
+  async function apiFetch(path, opts={}){
+    return fetch(path, {
+      ...opts,
+      headers: { 'Authorization': 'Bearer ' + masterToken, 'Content-Type':'application/json', ...(opts.headers||{}) }
+    });
+  }
+
+  function showDashboard(){
+    document.getElementById('loginCard').style.display = 'none';
+    const d = document.getElementById('dashboard');
+    d.style.display = 'flex';
+    refreshUsers(); refreshSessions();
+  }
+
+  function logout(){
+    masterToken=''; sessionStorage.removeItem('_mt');
+    document.getElementById('loginCard').style.display='';
+    document.getElementById('dashboard').style.display='none';
+  }
+  window.logout = logout;
+
+  async function refreshUsers(){
+    const tbody = document.getElementById('userTable');
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-row">Loading…</td></tr>';
+    try {
+      const res = await apiFetch('/api/master/users');
+      const { users } = await res.json();
+      document.getElementById('statTotal').textContent = users.length;
+      document.getElementById('statActive').textContent = users.filter(u=>u.is_active).length;
+      tbody.innerHTML = users.length ? users.map(u => `
+        <tr>
+          <td><div style="font-weight:500">${u.full_name||'—'}</div><div style="font-size:11px;color:#7a8599">${u.email}</div></td>
+          <td><span class="badge badge-${u.role}">${u.role}</span></td>
+          <td><span style="font-family:monospace;font-size:11px">${u.vertical}</span></td>
+          <td><span class="badge badge-${u.is_active?'active':'inactive'}">${u.is_active?'Active':'Inactive'}</span></td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap">
+            <select class="inline-select" onchange="changeRole('${u.id}',this.value)">
+              <option value="">role…</option>
+              <option value="analyst">analyst</option>
+              <option value="senior">senior</option>
+              <option value="head">head</option>
+            </select>
+            <select class="inline-select" onchange="changeVertical('${u.id}',this.value)">
+              <option value="">vertical…</option>
+              ${['epi','agri','trade','markets','packaging','startups','all'].map(v=>`<option value="${v}">${v}</option>`).join('')}
+            </select>
+            <button class="action-btn" onclick="toggleActive('${u.id}',${u.is_active})">${u.is_active?'Deactivate':'Activate'}</button>
+            <button class="action-btn danger" onclick="deleteUser('${u.id}','${u.email}')">Delete</button>
+          </td>
+        </tr>`).join('') : '<tr><td colspan="5" class="empty-row">No analysts found.</td></tr>';
+    } catch(_){ tbody.innerHTML='<tr><td colspan="5" class="empty-row">Failed to load.</td></tr>'; }
+  }
+  window.refreshUsers = refreshUsers;
+
+  async function refreshSessions(){
+    const tbody = document.getElementById('sessionTable');
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-row">Loading…</td></tr>';
+    try {
+      const res = await apiFetch('/api/master/audit');
+      const { sessions } = await res.json();
+      const today = sessions.filter(s=>s.login_at && s.login_at.startsWith(new Date().toISOString().slice(0,10)));
+      document.getElementById('statSessions').textContent = today.length;
+      tbody.innerHTML = sessions.length ? sessions.slice(0,30).map(s=>`
+        <tr>
+          <td style="font-size:11px;font-family:monospace">${s.profiles?.email||s.user_id?.slice(0,8)+'…'}</td>
+          <td><span class="badge badge-${s.role_at_login}">${s.role_at_login}</span></td>
+          <td style="font-family:monospace;font-size:11px">${s.vertical||'—'}</td>
+          <td style="font-size:11px;color:#7a8599">${s.login_at ? new Date(s.login_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}) : '—'}</td>
+        </tr>`).join('') : '<tr><td colspan="4" class="empty-row">No sessions yet.</td></tr>';
+    } catch(_){ tbody.innerHTML='<tr><td colspan="4" class="empty-row">Failed to load.</td></tr>'; }
+  }
+  window.refreshSessions = refreshSessions;
+
+  async function changeRole(id, role){ if(!role) return; await apiFetch('/api/master/users/'+id, {method:'PATCH',body:JSON.stringify({role})}); showToast('Role updated'); refreshUsers(); }
+  async function changeVertical(id, vertical){ if(!vertical) return; await apiFetch('/api/master/users/'+id, {method:'PATCH',body:JSON.stringify({vertical})}); showToast('Vertical updated'); refreshUsers(); }
+  async function toggleActive(id, current){ await apiFetch('/api/master/users/'+id, {method:'PATCH',body:JSON.stringify({is_active:!current})}); showToast(current?'User deactivated':'User activated'); refreshUsers(); }
+  async function deleteUser(id, email){ if(!confirm('Permanently delete '+email+'?')) return; await apiFetch('/api/master/users/'+id, {method:'DELETE'}); showToast('User deleted'); refreshUsers(); }
+  window.changeRole=changeRole; window.changeVertical=changeVertical; window.toggleActive=toggleActive; window.deleteUser=deleteUser;
+
+  let _tt;
+  function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2800); }
+
+  /* restore session on page reload */
+  const saved = sessionStorage.getItem('_mt');
+  if(saved){ masterToken=saved; showDashboard(); }
+}());
+</script>
+</body>
+</html>"""
+
+
+# ── Master auth helpers ────────────────────────────────────────────────────────
+def _master_sign(payload: str) -> str:
+    """HMAC-SHA256 sign a payload with MASTER_TOKEN as the key."""
+    secret = os.environ.get("MASTER_TOKEN", "dev-master-secret-change-me")
+    return hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+
+
+def _issue_master_session() -> str:
+    """Return a time-stamped signed session token."""
+    ts = str(int(time.time()))
+    nonce = secrets.token_hex(8)
+    payload = f"master:{ts}:{nonce}"
+    sig = _master_sign(payload)
+    return f"{payload}:{sig}"
+
+
+def _verify_master_session(token: str) -> bool:
+    """Verify the token signature and that it is less than 8 hours old."""
+    try:
+        parts = token.split(":")
+        if len(parts) != 4 or parts[0] != "master":
+            return False
+        _, ts, nonce, sig = parts
+        payload = f"master:{ts}:{nonce}"
+        expected = _master_sign(payload)
+        if not hmac.compare_digest(expected, sig):
+            return False
+        age = int(time.time()) - int(ts)
+        return age < 28800  # 8 hours
+    except Exception:
+        return False
+
+
+def _require_master(request: Request):
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Master token required")
+    token = auth.split(" ", 1)[1]
+    if not _verify_master_session(token):
+        raise HTTPException(status_code=401, detail="Invalid or expired master session")
+
+
+# ── /master — login page ───────────────────────────────────────────────────────
+@app.get("/master", response_class=HTMLResponse, include_in_schema=False)
+async def master_page():
+    """Master admin login — restricted URL, not linked from any public page."""
+    return HTMLResponse(content=_MASTER_HTML)
+
+
+# ── /api/master/login ─────────────────────────────────────────────────────────
+@app.post("/api/master/login", tags=["master"])
+async def master_login(request: Request):
+    """
+    Authenticate as master admin.
+    Compares against MASTER_EMAIL and MASTER_PASSWORD env vars.
+    Returns a signed session token (8-hour TTL).
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    expected_email = os.environ.get("MASTER_EMAIL", "")
+    expected_pass  = os.environ.get("MASTER_PASSWORD", "")
+
+    if not expected_email or not expected_pass:
+        raise HTTPException(status_code=503, detail="Master credentials not configured")
+
+    email_ok = hmac.compare_digest(body.get("email", ""), expected_email)
+    pass_ok   = hmac.compare_digest(body.get("password", ""), expected_pass)
+
+    if not email_ok or not pass_ok:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    return {"token": _issue_master_session(), "expires_in": 28800}
+
+
+# ── /api/master/users ─────────────────────────────────────────────────────────
+@app.get("/api/master/users", tags=["master"])
+async def master_list_users(request: Request):
+    """List all analyst profiles across all verticals."""
+    _require_master(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    resp = supa.table("profiles")\
+        .select("id, email, full_name, role, vertical, is_active, created_at")\
+        .order("created_at", desc=True)\
+        .execute()
+    return {"users": resp.data or []}
+
+
+@app.patch("/api/master/users/{user_id}", tags=["master"])
+async def master_update_user(request: Request, user_id: str):
+    """Update a user's role, vertical, or active status."""
+    _require_master(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    allowed_fields = {"role", "vertical", "is_active", "full_name"}
+    update = {k: v for k, v in body.items() if k in allowed_fields}
+
+    if "role" in update and update["role"] not in ("analyst", "senior", "head"):
+        raise HTTPException(status_code=400, detail="Invalid role")
+    if "vertical" in update and update["vertical"] not in ("epi", "agri", "trade", "markets", "packaging", "startups", "all"):
+        raise HTTPException(status_code=400, detail="Invalid vertical")
+
+    if not update:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+
+    supa.table("profiles").update(update).eq("id", user_id).execute()
+    return {"status": "updated", "user_id": user_id, "changes": update}
+
+
+@app.delete("/api/master/users/{user_id}", tags=["master"])
+async def master_delete_user(request: Request, user_id: str):
+    """Hard-delete a user profile (Supabase auth record is kept — revoke separately)."""
+    _require_master(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    supa.table("profiles").delete().eq("id", user_id).execute()
+    return {"status": "deleted", "user_id": user_id}
+
+
+# ── /api/master/audit ─────────────────────────────────────────────────────────
+@app.get("/api/master/audit", tags=["master"])
+async def master_audit(request: Request):
+    """Full login session audit — all analysts, all verticals, most recent first."""
+    _require_master(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    resp = supa.table("analyst_sessions")\
+        .select("id, user_id, role_at_login, vertical, login_at, logout_at, user_agent, profiles(email, full_name)")\
+        .order("login_at", desc=True)\
+        .limit(200)\
+        .execute()
+    return {"sessions": resp.data or []}
+
+
+# ── /api/master/dashboard ─────────────────────────────────────────────────────
+@app.get("/api/master/dashboard", tags=["master"])
+async def master_dashboard(request: Request):
+    """Aggregate stats: user counts by role and vertical, session counts."""
+    _require_master(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    users_resp    = supa.table("profiles").select("role, vertical, is_active").execute()
+    sessions_resp = supa.table("analyst_sessions").select("login_at").execute()
+
+    users    = users_resp.data or []
+    sessions = sessions_resp.data or []
+
+    from datetime import date
+    today = date.today().isoformat()
+    sessions_today = [s for s in sessions if s.get("login_at", "").startswith(today)]
+
+    by_role     = {}
+    by_vertical = {}
+    for u in users:
+        by_role[u["role"]] = by_role.get(u["role"], 0) + 1
+        by_vertical[u["vertical"]] = by_vertical.get(u["vertical"], 0) + 1
+
+    return {
+        "total_users":      len(users),
+        "active_users":     sum(1 for u in users if u.get("is_active")),
+        "inactive_users":   sum(1 for u in users if not u.get("is_active")),
+        "by_role":          by_role,
+        "by_vertical":      by_vertical,
+        "sessions_total":   len(sessions),
+        "sessions_today":   len(sessions_today),
+    }
