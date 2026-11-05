@@ -166,6 +166,8 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
 .ufile-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
 .ufile-meta{font-size:10.5px;color:var(--fog);font-family:var(--ff-mono)}
 .ufile-status{font-family:var(--ff-mono);font-size:9px;padding:2px 8px;border-radius:10px}
+.ufile-dl{font-size:14px;color:var(--fog);text-decoration:none;line-height:1;padding:2px 4px;border-radius:4px;transition:color .15s}
+.ufile-dl:hover{color:var(--acc)}
 .us-attached{background:rgba(76,255,145,.08);color:#4cff91;border:1px solid rgba(76,255,145,.15)}
 .us-review{background:var(--acc-dim);color:var(--acc);border:1px solid var(--acc-glow)}
 .us-pending{background:rgba(200,169,110,.1);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
@@ -402,6 +404,7 @@ input[type="date"].mf-input{color-scheme:dark}
                 </div>
                 <div class="mf-actions">
                   <button class="btn-cancel" onclick="clearDelivForm('model')">Clear</button>
+                  <button class="btn-secondary" onclick="downloadTemplate('model')" title="Download blank Excel model template">⬇ Template</button>
                   <button class="btn-primary" onclick="submitDeliv('model')">Upload Model</button>
                 </div>
               </div>
@@ -489,6 +492,7 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
                 </div>
                 <div class="mf-actions">
                   <button class="btn-cancel" onclick="clearDelivForm('data')">Clear</button>
+                  <button class="btn-secondary" onclick="downloadTemplate('data')" title="Download blank CSV data template">⬇ Template</button>
                   <button class="btn-primary" onclick="submitDeliv('data')">Upload Data</button>
                 </div>
                 <div id="data-topline" style="margin-top:14px"></div>
@@ -833,27 +837,32 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
     if(days<=365) return `<span class="age-badge age-stale">${Math.round(days/30)}mo old</span>`;
     return `<span class="age-badge age-old">${(days/365).toFixed(1)}yr old</span>`;
   }
+  // Staged file store — keyed by deliverable type
+  window._stagedFiles = window._stagedFiles || {};
+
   function handleDelivUpload(input, type){
     const file = input.files[0];
     if(!file) return;
+    window._stagedFiles[type] = file;   // keep reference for submitDeliv
     const asofEl = document.getElementById(type+'-asof');
     const asofVal = asofEl ? asofEl.value : '';
     const today = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
     const list = document.getElementById(type+'-list');
-    const existing = list.innerHTML;
-    list.innerHTML = existing + `
-      <div class="ufile">
-        <div class="ufile-icon">${fileIcon(file.name)}</div>
-        <div class="ufile-info">
-          <div class="ufile-name">${esc(file.name)}</div>
-          <div class="ufile-meta">
-            ${(file.size/1024/1024).toFixed(1)} MB
-            · <span class="ufile-datechip">📅 Uploaded ${today}</span>
-            ${asofVal ? `· <span class="ufile-datechip">🗓 Data as of ${fmtDate(asofVal)}</span> ${dataAge(asofVal)}` : ''}
-          </div>
+    // Replace any previous STAGED row (only one staged at a time)
+    const prev = list.querySelector('.us-pending');
+    if(prev) prev.closest('.ufile')?.remove();
+    list.insertAdjacentHTML('afterbegin', `<div class="ufile" data-staged="${type}">
+      <div class="ufile-icon">${fileIcon(file.name)}</div>
+      <div class="ufile-info">
+        <div class="ufile-name">${esc(file.name)}</div>
+        <div class="ufile-meta">
+          ${(file.size/1024/1024).toFixed(1)} MB
+          · <span class="ufile-datechip">📅 Staged ${today}</span>
+          ${asofVal ? `· <span class="ufile-datechip">🗓 Data as of ${fmtDate(asofVal)}</span> ${dataAge(asofVal)}` : ''}
         </div>
-        <span class="ufile-status us-pending">STAGED</span>
-      </div>`;
+      </div>
+      <span class="ufile-status us-pending">STAGED</span>
+    </div>`);
     input.value='';
   }
   window.handleDelivUpload = handleDelivUpload;
@@ -873,13 +882,83 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
   }
   window.clearDelivForm = clearDelivForm;
 
-  function submitDeliv(type){
+  async function submitDeliv(type){
     const listEl = document.getElementById(type+'-list');
-    const staged = listEl.querySelector('.us-pending');
-    if(!staged){ alert('Please select a file first.'); return; }
-    staged.className='ufile-status us-review';
-    staged.textContent='IN REVIEW';
-    // Real implementation: FormData POST to /api/upload/{type}
+    const stagedRow = listEl.querySelector('[data-staged]');
+    const stagedBadge = stagedRow ? stagedRow.querySelector('.us-pending') : null;
+    if(!stagedBadge){ alert('Please select a file first.'); return; }
+
+    const file = window._stagedFiles[type];
+    if(!file){ alert('File reference lost — please re-select the file.'); return; }
+
+    // ── collect form fields ──────────────────────────────────────────────────
+    const g = id => { const el=document.getElementById(id); return el?el.value.trim():''; };
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    fd.append('deliverable_type', type);
+    fd.append('vertical', VERTICAL);
+    fd.append('report_id',   g(type+'-link'));
+    fd.append('model_title', g(type+'-version') ? `${file.name} v${g(type+'-version')}` : file.name);
+    fd.append('asof',        g(type+'-asof'));
+    fd.append('version',     g(type+'-version'));
+    // type-specific meta
+    if(type==='report'){
+      fd.append('coverage', g('report-coverage'));
+      fd.append('notes',    g('report-notes'));
+      fd.append('vis',      g('report-vis')||'public');
+      fd.append('pages',    g('report-pages'));
+    } else if(type==='model'){
+      fd.append('baseyear',   g('model-baseyear'));
+      fd.append('model_type', g('model-type'));
+      fd.append('sheets',     g('model-sheets'));
+      fd.append('sources',    g('model-sources'));
+    } else if(type==='deck'){
+      fd.append('slides',   g('deck-slides'));
+      fd.append('presdate', g('deck-presdate'));
+      fd.append('audience', g('deck-audience'));
+      fd.append('brand',    g('deck-brand'));
+    } else if(type==='data'){
+      fd.append('period',     g('data-period'));
+      fd.append('geo',        g('data-geo'));
+      fd.append('nextupdate', g('data-nextupdate'));
+      fd.append('publish',    g('data-publish')||'public');
+    }
+
+    // ── auth token ───────────────────────────────────────────────────────────
+    let token = '';
+    try {
+      const { data: { session } } = await window._supa.auth.getSession();
+      token = session?.access_token || '';
+    } catch(_){}
+    if(!token){ alert('Session expired — please log in again.'); return; }
+
+    // ── UI: uploading state ──────────────────────────────────────────────────
+    stagedBadge.className = 'ufile-status us-review';
+    stagedBadge.textContent = 'UPLOADING…';
+
+    try {
+      const res = await fetch(`/api/upload/${type}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: fd,
+      });
+      if(res.ok){
+        const json = await res.json();
+        stagedBadge.textContent = 'IN REVIEW';
+        delete window._stagedFiles[type];
+        // Refresh the list from Supabase after a short delay
+        setTimeout(()=>loadDeliverablesList(), 1200);
+      } else {
+        const err = await res.json().catch(()=>({detail:'Upload failed'}));
+        stagedBadge.className = 'ufile-status us-pending';
+        stagedBadge.textContent = 'STAGED';
+        alert('Upload failed: ' + (err.detail || res.statusText));
+      }
+    } catch(e){
+      stagedBadge.className = 'ufile-status us-pending';
+      stagedBadge.textContent = 'STAGED';
+      alert('Network error: ' + e.message);
+    }
   }
   window.submitDeliv = submitDeliv;
 
@@ -896,39 +975,68 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
   }
   window.populateReportDropdowns = populateReportDropdowns;
 
+  function _renderDelivRow(r){
+    const uploadedOn = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    const asof = (r.platform_tabs?.asof) || '';
+    const statusKey = r.status==='approved'?'attached':r.status==='submitted'?'review':'pending';
+    const dlLink = r.signed_url ? `<a href="${r.signed_url}" target="_blank" class="ufile-dl" title="Download">⬇</a>` : '';
+    return `<div class="ufile">
+      <div class="ufile-icon">${fileIcon(r.file_type||'docx')}</div>
+      <div class="ufile-info">
+        <div class="ufile-name">${esc(r.model_title||'Untitled')}</div>
+        <div class="ufile-meta">
+          <span class="ufile-datechip">📅 ${uploadedOn}</span>
+          ${asof ? `· <span class="ufile-datechip">🗓 Data as of ${fmtDate(asof)}</span> ${dataAge(asof)}` : ''}
+          ${r.age_days!=null ? '' : ''}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        ${dlLink}
+        <span class="ufile-status us-${statusKey}">${(r.status||'draft').toUpperCase()}</span>
+      </div>
+    </div>`;
+  }
+
   async function loadDeliverablesList(){
-    // Load existing uploads from model_uploads table
-    if(!window._supa) return;
-    try{
-      const {data} = await window._supa
-        .from('model_uploads')
-        .select('id,file_type,model_title,status,created_at')
-        .eq('vertical',VERTICAL)
-        .order('created_at',{ascending:false})
-        .limit(20);
-      if(!data) return;
-      ['report','model','deck','data'].forEach(type=>{
-        const rows = data.filter(r=>r.file_type===type||(type==='report'&&r.file_type==='docx')||(type==='model'&&r.file_type==='xlsx')||(type==='deck'&&r.file_type==='pptx')||(type==='data'&&r.file_type==='csv'));
-        const list = document.getElementById(type+'-list');
-        if(!list||!rows.length) return;
-        list.innerHTML = rows.map(r=>{
-          const uploadedOn = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
-          const asof = r.platform_tabs?.asof || '';
-          const statusKey = r.status==='approved'?'attached':r.status==='submitted'?'review':'pending';
-          return `<div class="ufile">
-            <div class="ufile-icon">${fileIcon(r.file_type||'docx')}</div>
-            <div class="ufile-info">
-              <div class="ufile-name">${esc(r.model_title||'Untitled')}</div>
-              <div class="ufile-meta">
-                <span class="ufile-datechip">📅 Uploaded ${uploadedOn}</span>
-                ${asof ? `· <span class="ufile-datechip">🗓 Data as of ${fmtDate(asof)}</span> ${dataAge(asof)}` : ''}
-              </div>
-            </div>
-            <span class="ufile-status us-${statusKey}">${(r.status||'draft').toUpperCase()}</span>
-          </div>`;
-        }).join('');
-      });
-    }catch(_){}
+    // Primary: use the backend API endpoint (enriches with signed_url + age_days)
+    // Fallback: direct Supabase JS query
+    let rows = [];
+    try {
+      const { data: { session } } = await window._supa.auth.getSession();
+      const token = session?.access_token || '';
+      if(token){
+        const res = await fetch(`/api/deliverables/${VERTICAL}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if(res.ok){
+          const json = await res.json();
+          rows = json.deliverables || [];
+        }
+      }
+    } catch(_){}
+
+    // Fallback if API not reachable or token unavailable
+    if(!rows.length && window._supa){
+      try{
+        const {data} = await window._supa
+          .from('model_uploads')
+          .select('id,file_type,model_title,status,created_at,platform_tabs')
+          .eq('vertical',VERTICAL)
+          .order('created_at',{ascending:false})
+          .limit(20);
+        rows = data || [];
+      }catch(_){}
+    }
+
+    if(!rows.length) return;
+    ['report','model','deck','data'].forEach(type=>{
+      const typeRows = rows.filter(r=>r.file_type===type);
+      const list = document.getElementById(type+'-list');
+      if(!list) return;
+      // Keep any STAGED rows (not from DB) at top, then DB rows
+      const stagedHtml = list.querySelector('[data-staged]')?.outerHTML || '';
+      list.innerHTML = stagedHtml + typeRows.map(_renderDelivRow).join('');
+    });
   }
   window.loadDeliverablesList = loadDeliverablesList;
 

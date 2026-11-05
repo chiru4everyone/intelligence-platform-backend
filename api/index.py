@@ -17,7 +17,7 @@ _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Request, HTTPException, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from functools import wraps
@@ -26,6 +26,8 @@ import hashlib
 import hmac
 import secrets
 import time
+import datetime
+import uuid
 
 # ── Login page HTML (embedded — no filesystem dependency on serverless) ──────
 _LOGIN_HTML = r"""<!doctype html>
@@ -1623,6 +1625,251 @@ async def master_delete_report(request: Request, report_id: str):
         raise HTTPException(status_code=503, detail="Supabase not configured")
     supa.table("reports").delete().eq("id", report_id).execute()
     return {"status": "deleted", "report_id": report_id}
+
+
+# ── /api/upload/{deliverable_type} ───────────────────────────────────────────
+VALID_DELIVERABLE_TYPES = {"report", "model", "deck", "data"}
+VALID_VERTICALS = {"epi", "agri", "trade", "markets", "packaging", "startups"}
+ALLOWED_EXTENSIONS = {
+    "report": {"docx", "pdf"},
+    "model":  {"xlsx", "xlsm"},
+    "deck":   {"pptx"},
+    "data":   {"csv", "json"},
+}
+
+def _get_supa_service():
+    """Service-role Supabase client for Storage operations (bypasses RLS)."""
+    try:
+        from supabase import create_client
+        url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "") or os.environ.get("SUPABASE_ANON_KEY", "")
+        if not url or not key:
+            return None
+        return create_client(url, key)
+    except Exception:
+        return None
+
+
+@app.post("/api/upload/{deliverable_type}", tags=["deliverables"])
+async def upload_deliverable(
+    request: Request,
+    deliverable_type: str,
+    file: UploadFile = File(...),
+    vertical:    str = Form(...),
+    report_id:   str = Form(""),
+    model_title: str = Form(""),
+    asof:        str = Form(""),
+    # optional metadata fields — stored in platform_tabs JSONB
+    version:     str = Form(""),
+    coverage:    str = Form(""),
+    notes:       str = Form(""),
+    vis:         str = Form("public"),
+    # model-specific
+    baseyear:    str = Form(""),
+    model_type:  str = Form(""),
+    sheets:      str = Form(""),
+    sources:     str = Form(""),
+    # deck-specific
+    slides:      str = Form(""),
+    presdate:    str = Form(""),
+    audience:    str = Form(""),
+    brand:       str = Form(""),
+    # data-specific
+    period:      str = Form(""),
+    geo:         str = Form(""),
+    nextupdate:  str = Form(""),
+    publish:     str = Form("public"),
+    # report-specific
+    pages:       str = Form(""),
+):
+    """
+    Upload a deliverable file (report/model/deck/data) for a vertical.
+    Requires senior or head role. Stores bytes in Supabase Storage bucket
+    'deliverables' and inserts a row into model_uploads.
+    """
+    # ── auth: resolve profile ──────────────────────────────────────────────────
+    profile = await _resolve_profile(request)
+    if profile["role"] not in ("senior", "head"):
+        raise HTTPException(status_code=403, detail="Upload requires senior or head role")
+
+    # ── validate deliverable_type ──────────────────────────────────────────────
+    if deliverable_type not in VALID_DELIVERABLE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Invalid deliverable type. Must be one of: {sorted(VALID_DELIVERABLE_TYPES)}")
+
+    # ── validate vertical ──────────────────────────────────────────────────────
+    if vertical not in VALID_VERTICALS:
+        raise HTTPException(status_code=400, detail=f"Invalid vertical. Must be one of: {sorted(VALID_VERTICALS)}")
+
+    # ── vertical access check (analysts can only upload to their own vertical) ─
+    profile_vertical = profile.get("vertical", "")
+    if profile_vertical != "all" and profile_vertical != vertical:
+        raise HTTPException(status_code=403, detail=f"You are assigned to '{profile_vertical}' and cannot upload to '{vertical}'")
+
+    # ── validate file extension ────────────────────────────────────────────────
+    filename = file.filename or "upload"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    allowed = ALLOWED_EXTENSIONS.get(deliverable_type, set())
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail=f"Invalid file type '.{ext}' for {deliverable_type}. Allowed: {sorted(allowed)}")
+
+    # ── read file bytes ────────────────────────────────────────────────────────
+    try:
+        content = await file.read()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Could not read file: {exc}")
+
+    if len(content) > 50 * 1024 * 1024:  # 50 MB limit
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 50 MB")
+
+    # ── build storage path ─────────────────────────────────────────────────────
+    file_id = str(uuid.uuid4())
+    safe_name = filename.replace(" ", "_")
+    storage_path = f"{vertical}/{deliverable_type}/{file_id}/{safe_name}"
+
+    # ── upload to Supabase Storage ─────────────────────────────────────────────
+    supa = _get_supa_service()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Storage service not configured")
+
+    try:
+        supa.storage.from_("deliverables").upload(
+            path=storage_path,
+            file=content,
+            file_options={"content-type": file.content_type or "application/octet-stream"},
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Storage upload failed: {exc}")
+
+    # ── build signed URL (1 week TTL) ──────────────────────────────────────────
+    try:
+        signed = supa.storage.from_("deliverables").create_signed_url(storage_path, 604800)
+        signed_url = signed.get("signedURL") or signed.get("signedUrl") or ""
+    except Exception:
+        signed_url = ""
+
+    # ── build platform_tabs JSONB payload ─────────────────────────────────────
+    platform_tabs: dict = {}
+    if asof:
+        platform_tabs["asof"] = asof
+    if version:
+        platform_tabs["version"] = version
+    if coverage:
+        platform_tabs["coverage"] = coverage
+    if notes:
+        platform_tabs["notes"] = notes
+    if vis:
+        platform_tabs["vis"] = vis
+    # type-specific fields
+    if deliverable_type == "model":
+        for k, v in [("baseyear", baseyear), ("model_type", model_type), ("sheets", sheets), ("sources", sources)]:
+            if v: platform_tabs[k] = v
+    elif deliverable_type == "deck":
+        for k, v in [("slides", slides), ("presdate", presdate), ("audience", audience), ("brand", brand)]:
+            if v: platform_tabs[k] = v
+    elif deliverable_type == "data":
+        for k, v in [("period", period), ("geo", geo), ("nextupdate", nextupdate), ("publish", publish)]:
+            if v: platform_tabs[k] = v
+    elif deliverable_type == "report":
+        for k, v in [("pages", pages)]:
+            if v: platform_tabs[k] = v
+
+    # ── insert row into model_uploads ──────────────────────────────────────────
+    row = {
+        "id":           file_id,
+        "file_type":    deliverable_type,
+        "model_title":  model_title or filename,
+        "vertical":     vertical,
+        "status":       "submitted",
+        "visibility":   vis or "public",
+        "platform_tabs": platform_tabs,
+        "storage_path": storage_path,
+        "created_at":   datetime.datetime.utcnow().isoformat(),
+    }
+    if report_id:
+        row["report_id"] = report_id
+
+    try:
+        supa.table("model_uploads").insert(row).execute()
+    except Exception as exc:
+        # Storage file is already uploaded — log but don't fail silently
+        raise HTTPException(status_code=500, detail=f"Database insert failed: {exc}")
+
+    return {
+        "id":           file_id,
+        "storage_path": storage_path,
+        "signed_url":   signed_url,
+        "status":       "submitted",
+        "deliverable_type": deliverable_type,
+        "vertical":     vertical,
+    }
+
+
+# ── /api/deliverables/{vertical} ──────────────────────────────────────────────
+@app.get("/api/deliverables/{vertical}", tags=["deliverables"])
+async def get_deliverables(request: Request, vertical: str, limit: int = 20):
+    """
+    Returns all deliverable uploads for a vertical, newest first.
+    Requires valid Supabase auth. Users can only view their own vertical
+    (or all verticals if vertical=='all').
+    """
+    profile = await _resolve_profile(request)
+
+    if vertical not in VALID_VERTICALS:
+        raise HTTPException(status_code=400, detail=f"Invalid vertical: {vertical}")
+
+    profile_vertical = profile.get("vertical", "")
+    if profile_vertical != "all" and profile_vertical != vertical:
+        raise HTTPException(status_code=403, detail=f"Access denied for vertical '{vertical}'")
+
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        resp = (
+            supa.table("model_uploads")
+            .select("id, file_type, model_title, status, created_at, platform_tabs, storage_path, visibility")
+            .eq("vertical", vertical)
+            .order("created_at", desc=True)
+            .limit(min(limit, 100))
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Database query failed: {exc}")
+
+    rows = resp.data or []
+
+    # Enrich each row with a fresh signed URL and age info
+    supa_svc = _get_supa_service()
+    now_ts = datetime.datetime.utcnow()
+    enriched = []
+    for r in rows:
+        # Compute data age in days from asof date in platform_tabs
+        asof_val = (r.get("platform_tabs") or {}).get("asof", "")
+        age_days: Optional[int] = None
+        if asof_val:
+            try:
+                asof_dt = datetime.datetime.fromisoformat(asof_val)
+                age_days = (now_ts - asof_dt).days
+            except Exception:
+                pass
+
+        # Fresh signed URL (1 week TTL) if storage_path present
+        signed_url = ""
+        if supa_svc and r.get("storage_path"):
+            try:
+                signed = supa_svc.storage.from_("deliverables").create_signed_url(r["storage_path"], 604800)
+                signed_url = signed.get("signedURL") or signed.get("signedUrl") or ""
+            except Exception:
+                pass
+
+        enriched.append({
+            **r,
+            "age_days":  age_days,
+            "signed_url": signed_url,
+        })
+
+    return {"vertical": vertical, "deliverables": enriched, "count": len(enriched)}
 
 
 # ── /workflow — Gantt dashboard page ─────────────────────────────────────────
