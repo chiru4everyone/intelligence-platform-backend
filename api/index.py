@@ -430,7 +430,7 @@ async def _resolve_profile(request: Request):
     try:
         profile_resp = (
             supa.table("profiles")
-            .select("role, vertical, full_name, email, is_active")
+            .select("role, vertical, full_name, email")
             .eq("id", uid)
             .single()
             .execute()
@@ -439,10 +439,7 @@ async def _resolve_profile(request: Request):
         raise HTTPException(status_code=500, detail=f"Profile fetch failed: {exc}")
     if not profile_resp.data:
         raise HTTPException(status_code=403, detail="No profile found for this user")
-    p = profile_resp.data
-    if not p.get("is_active", True):
-        raise HTTPException(status_code=403, detail="Account is deactivated — contact your Head of Research")
-    return p
+    return profile_resp.data
 
 
 def require_role(*allowed_roles: str):
