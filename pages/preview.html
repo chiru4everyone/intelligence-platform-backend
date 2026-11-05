@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Intelligence Platform — Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#06080d;--ink2:#0c0f16;--ink3:#11151e;--ink4:#171c28;
+  --rule:rgba(255,255,255,.06);--rule2:rgba(255,255,255,.1);
+  --white:#eef0f5;--fog:#7a8599;--ghost:#3d4a60;
+  --ff-serif:'DM Serif Display',Georgia,serif;
+  --ff-body:'Inter',system-ui,sans-serif;
+  --ff-mono:'JetBrains Mono',monospace;
+  --r:6px;--r2:10px;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var(--white);-webkit-font-smoothing:antialiased}
+
+/* ── Top bar ── */
+.topnav{display:flex;align-items:center;justify-content:space-between;padding:14px 32px;background:var(--ink2);border-bottom:1px solid var(--rule2);position:sticky;top:0;z-index:10}
+.logo{font-family:var(--ff-serif);font-size:17px;color:var(--white)}
+.preview-badge{font-family:var(--ff-mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 10px;background:rgba(200,169,110,.12);border:1px solid rgba(200,169,110,.25);border-radius:20px;color:#c8a96e}
+.login-link{padding:7px 16px;background:var(--white);border:none;border-radius:var(--r);font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;font-family:var(--ff-body);text-decoration:none}
+
+/* ── Vertical tabs ── */
+.tab-row{display:flex;gap:0;border-bottom:1px solid var(--rule2);background:var(--ink2);padding:0 32px;overflow-x:auto}
+.tab{display:flex;align-items:center;gap:8px;padding:14px 20px;font-size:12.5px;color:var(--fog);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--ff-body)}
+.tab:hover{color:var(--white)}
+.tab.active{color:var(--white);border-bottom-color:var(--acc)}
+.tab-dot{width:7px;height:7px;border-radius:50%}
+
+/* ── Preview banner ── */
+.preview-banner{background:rgba(200,169,110,.07);border-bottom:1px solid rgba(200,169,110,.15);padding:10px 32px;display:flex;align-items:center;gap:10px;font-size:12px;color:#c8a96e;font-family:var(--ff-mono)}
+
+/* ── Workspace (mirrors the actual domain page layout) ── */
+.workspace{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 112px)}
+
+/* sidebar */
+.sidebar{background:var(--ink2);border-right:1px solid var(--rule2);display:flex;flex-direction:column;padding:0}
+.sidebar-top{padding:20px 18px 16px;border-bottom:1px solid var(--rule)}
+.vertical-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--acc-dim);border:1px solid var(--acc-glow);border-radius:20px;font-family:var(--ff-mono);font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--acc);margin-bottom:10px}
+.vertical-dot{width:5px;height:5px;border-radius:50%;background:var(--acc)}
+.sidebar-title{font-family:var(--ff-serif);font-size:16px;color:var(--white);line-height:1.3;margin-bottom:3px}
+.sidebar-sub{font-size:11px;color:var(--fog)}
+.nav{padding:12px 10px;flex:1}
+.nav-section-label{font-family:var(--ff-mono);font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ghost);padding:8px 8px 4px;display:block}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r);font-size:12.5px;color:var(--fog)}
+.nav-item.active{background:var(--acc-soft);color:var(--acc);font-weight:500}
+.nav-item .icon{font-size:14px;width:18px;text-align:center}
+.sidebar-footer{padding:14px 16px;border-top:1px solid var(--rule)}
+.user-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.user-avatar{width:30px;height:30px;border-radius:50%;background:var(--acc-dim);border:1px solid var(--acc-glow);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--acc)}
+.user-name{font-size:12px;font-weight:500;color:var(--white)}
+.user-role{font-family:var(--ff-mono);font-size:9px;color:var(--fog)}
+
+/* main area */
+.main-area{display:flex;flex-direction:column}
+.topbar{padding:14px 28px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;background:var(--ink)}
+.topbar-title{font-size:14px;font-weight:500}
+.role-badge{padding:4px 10px;border-radius:20px;font-family:var(--ff-mono);font-size:9px;letter-spacing:.8px;text-transform:uppercase;background:rgba(200,169,110,.12);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
+.content{padding:24px 28px;display:flex;flex-direction:column;gap:22px}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi{padding:18px 20px;background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--acc);opacity:.6}
+.kpi-val{font-size:26px;font-weight:600;color:var(--white);margin-bottom:4px;font-family:var(--ff-mono)}
+.kpi-label{font-size:11px;color:var(--fog)}
+.kpi-delta{font-size:10.5px;margin-top:6px;font-family:var(--ff-mono);color:var(--acc)}
+
+/* section */
+.section{background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);overflow:hidden}
+.section-head{padding:14px 20px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between}
+.section-title{font-size:13px;font-weight:600}
+.btn-primary{padding:7px 16px;background:var(--acc);border:none;border-radius:var(--r);font-size:12px;font-weight:600;color:var(--ink);cursor:default;font-family:var(--ff-body)}
+
+/* report table */
+.report-table{width:100%;border-collapse:collapse}
+.report-table th{font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fog);padding:10px 20px;text-align:left;border-bottom:1px solid var(--rule)}
+.report-table td{padding:11px 20px;font-size:12.5px;border-bottom:1px solid var(--rule);vertical-align:middle}
+.report-table tr:last-child td{border-bottom:none}
+.stage-pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-family:var(--ff-mono);font-size:9.5px}
+.s-draft{background:rgba(61,74,96,.3);color:#7a8599;border:1px solid rgba(61,74,96,.4)}
+.s-submitted{background:rgba(74,127,232,.1);color:#4a7fe8;border:1px solid rgba(74,127,232,.2)}
+.s-senior_review{background:rgba(155,114,232,.1);color:#9b72e8;border:1px solid rgba(155,114,232,.2)}
+.s-approved{background:rgba(142,212,74,.1);color:#8ed44a;border:1px solid rgba(142,212,74,.2)}
+.s-published{background:rgba(76,255,145,.1);color:#4cff91;border:1px solid rgba(76,255,145,.2)}
+.btn-approve{padding:5px 12px;background:var(--acc-dim);border:1px solid var(--acc-glow);border-radius:var(--r);font-size:11px;color:var(--acc);cursor:default;font-family:var(--ff-body)}
+.btn-reject{padding:5px 12px;background:rgba(232,93,74,.08);border:1px solid rgba(232,93,74,.2);border-radius:var(--r);font-size:11px;color:#e85d4a;cursor:default;font-family:var(--ff-body)}
+.btn-publish{padding:5px 12px;background:rgba(200,169,110,.12);border:1px solid rgba(200,169,110,.25);border-radius:var(--r);font-size:11px;color:#c8a96e;cursor:default;font-family:var(--ff-body)}
+.priority-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
+.p-high{background:#e85d4a}.p-med{background:#c8a96e}.p-low{background:#3d4a60}
+
+/* factsheet cards */
+.factsheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;padding:16px}
+.fs-card{padding:16px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2)}
+.fs-status{font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;color:var(--acc)}
+.fs-title{font-size:13px;font-weight:500;margin-bottom:5px}
+.fs-sub{font-size:11.5px;color:var(--fog);line-height:1.5;margin-bottom:10px}
+.fs-metrics{display:flex;gap:16px}
+.fs-metric-val{font-family:var(--ff-mono);font-size:14px;font-weight:500;color:var(--acc)}
+.fs-metric-label{font-size:9.5px;color:var(--fog);margin-top:1px}
+
+/* data sources */
+.source-row{display:flex;align-items:center;justify-content:space-between;padding:11px 20px;border-bottom:1px solid var(--rule)}
+.source-row:last-child{border-bottom:none}
+.source-info{display:flex;align-items:center;gap:10px}
+.source-status{width:7px;height:7px;border-radius:50%}
+.status-live{background:#4cff91;box-shadow:0 0 6px rgba(76,255,145,.4)}
+.status-stale{background:#c8a96e}
+.source-name{font-size:12.5px}
+.source-tier{font-family:var(--ff-mono);font-size:9px;color:var(--fog);padding:1px 5px;background:rgba(255,255,255,.04);border-radius:3px}
+.source-meta{font-size:11px;color:var(--fog);font-family:var(--ff-mono)}
+
+/* upload zone */
+.upload-zone{margin:16px;padding:28px;border:1.5px dashed var(--rule2);border-radius:var(--r2);text-align:center}
+.upload-icon{font-size:28px;margin-bottom:10px}
+.upload-label{font-size:13px;color:var(--fog);margin-bottom:4px}
+.upload-hint{font-family:var(--ff-mono);font-size:10px;color:var(--ghost)}
+
+@media(max-width:800px){
+  .workspace{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .kpi-row{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- top nav -->
+<div class="topnav">
+  <div class="logo">Intelligence Platform</div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span class="preview-badge">Preview Mode</span>
+    <a href="/" class="login-link">Sign in →</a>
+  </div>
+</div>
+
+<!-- preview banner -->
+<div class="preview-banner">
+  <span>👁</span>
+  <span>READ-ONLY PREVIEW — This shows the analyst workspace UI for each intelligence vertical. Sign in with your credentials to access live data.</span>
+</div>
+
+<!-- vertical tabs -->
+<div class="tab-row" id="tabRow">
+  <button class="tab active" onclick="switchTab('epi',this)" style="--acc:#2ec4b6">
+    <span class="tab-dot" style="background:#2ec4b6"></span>Epidemiology
+  </button>
+  <button class="tab" onclick="switchTab('agri',this)" style="--acc:#4caf78">
+    <span class="tab-dot" style="background:#4caf78"></span>Agriculture
+  </button>
+  <button class="tab" onclick="switchTab('trade',this)" style="--acc:#4a7fe8">
+    <span class="tab-dot" style="background:#4a7fe8"></span>Trade
+  </button>
+  <button class="tab" onclick="switchTab('markets',this)" style="--acc:#c8a96e">
+    <span class="tab-dot" style="background:#c8a96e"></span>Markets
+  </button>
+  <button class="tab" onclick="switchTab('packaging',this)" style="--acc:#e85d4a">
+    <span class="tab-dot" style="background:#e85d4a"></span>Packaging
+  </button>
+  <button class="tab" onclick="switchTab('startups',this)" style="--acc:#9b72e8">
+    <span class="tab-dot" style="background:#9b72e8"></span>Startups
+  </button>
+</div>
+
+<!-- workspace panels (one per vertical) -->
+<div id="panels"></div>
+
+<script>
+const VERTICALS = {
+  epi:       { label:'Epidemiology', acc:'#2ec4b6', accRgb:'46,196,182',  accDim:'rgba(46,196,182,.12)',  accGlow:'rgba(46,196,182,.2)',  accSoft:'rgba(46,196,182,.08)',  reports: [
+    {title:'Global Respiratory Virus Burden 2026',       stage:'published',      priority:'high', author:'Dr. R. Sharma',   updated:'02 Nov 2026'},
+    {title:'Antimicrobial Resistance Trends — South Asia', stage:'senior_review', priority:'high', author:'A. Nair',         updated:'04 Nov 2026'},
+    {title:'Vector-Borne Disease Index Q4 2026',          stage:'submitted',      priority:'med',  author:'P. Krishnan',     updated:'03 Nov 2026'},
+    {title:'Vaccine Coverage Gaps — Rural India',         stage:'draft',          priority:'med',  author:'S. Mehta',        updated:'01 Nov 2026'},
+  ], factsheets:[
+    {title:'Respiratory Virus Burden',  sub:'Seasonal and pandemic-risk index across 40 markets',  metrics:[{val:'40',label:'Markets'},{val:'Q4',label:'Cadence'}]},
+    {title:'AMR Resistance Index',      sub:'Antibiotic resistance surveillance across South Asia', metrics:[{val:'18',label:'Pathogens'},{val:'Monthly',label:'Update'}]},
+    {title:'Vaccine Coverage Tracker',  sub:'District-level immunisation coverage, India',         metrics:[{val:'736',label:'Districts'},{val:'Weekly',label:'Update'}]},
+  ], sources:[
+    {name:'WHO Global Health Observatory', tier:'T1', status:'live',  meta:'Last sync: 2h ago'},
+    {name:'ICMR Surveillance Feed',         tier:'T1', status:'live',  meta:'Last sync: 4h ago'},
+    {name:'ECDC Weekly Bulletin',           tier:'T2', status:'live',  meta:'Last sync: 1d ago'},
+    {name:'PubMed Clinical Trials Feed',    tier:'T2', status:'stale', meta:'Last sync: 3d ago'},
+  ], kpis:{total:12, published:4, inReview:5, sources:4}},
+
+  agri:      { label:'Agriculture',  acc:'#4caf78', accRgb:'76,175,120',  accDim:'rgba(76,175,120,.12)',  accGlow:'rgba(76,175,120,.2)',  accSoft:'rgba(76,175,120,.08)',  reports:[
+    {title:'Kharif Crop Output Forecast 2026',          stage:'published',  priority:'high', author:'V. Patel',    updated:'02 Nov 2026'},
+    {title:'Fertiliser Price Volatility — Q4 2026',     stage:'approved',   priority:'high', author:'M. Reddy',   updated:'04 Nov 2026'},
+    {title:'Precision Agriculture Adoption Index',       stage:'submitted',  priority:'med',  author:'A. Singh',   updated:'03 Nov 2026'},
+    {title:'Groundwater Depletion Risk — Punjab',        stage:'draft',      priority:'med',  author:'K. Joshi',   updated:'01 Nov 2026'},
+  ], factsheets:[
+    {title:'Kharif Crop Monitor',    sub:'Real-time output tracking across 15 key crops', metrics:[{val:'15',label:'Crops'},{val:'Weekly',label:'Update'}]},
+    {title:'Fertiliser Price Index', sub:'Pan-India fertiliser cost benchmarking',         metrics:[{val:'8',label:'Nutrients'},{val:'Monthly',label:'Update'}]},
+  ], sources:[
+    {name:'Ministry of Agriculture Data Portal', tier:'T1', status:'live',  meta:'Last sync: 1h ago'},
+    {name:'IMD Rainfall Feed',                   tier:'T1', status:'live',  meta:'Last sync: 6h ago'},
+    {name:'NABARD Rural Finance Data',            tier:'T2', status:'live',  meta:'Last sync: 1d ago'},
+  ], kpis:{total:9, published:3, inReview:3, sources:3}},
+
+  trade:     { label:'Trade',        acc:'#4a7fe8', accRgb:'74,127,232',  accDim:'rgba(74,127,232,.12)',  accGlow:'rgba(74,127,232,.2)',  accSoft:'rgba(74,127,232,.08)',  reports:[
+    {title:'India–ASEAN Trade Corridor 2026',        stage:'published',      priority:'high', author:'N. Iyer',     updated:'01 Nov 2026'},
+    {title:'Export Control Regime Changes — Pharma', stage:'head_review',    priority:'high', author:'R. Bose',     updated:'04 Nov 2026'},
+    {title:'Logistics Cost Index — Q4 2026',         stage:'senior_review',  priority:'med',  author:'T. Gupta',    updated:'03 Nov 2026'},
+  ], factsheets:[
+    {title:'India–ASEAN Trade Monitor', sub:'Bilateral trade flows across 11 ASEAN markets',       metrics:[{val:'11',label:'Markets'},{val:'Monthly',label:'Update'}]},
+    {title:'Pharma Export Tracker',     sub:'Regulated export compliance across 60+ destinations', metrics:[{val:'60+',label:'Markets'},{val:'Weekly',label:'Update'}]},
+  ], sources:[
+    {name:'DGFT Export–Import Data',      tier:'T1', status:'live',  meta:'Last sync: 2h ago'},
+    {name:'WTO Trade Statistics',         tier:'T1', status:'live',  meta:'Last sync: 1d ago'},
+    {name:'RBI Cross-Border Payments',    tier:'T2', status:'live',  meta:'Last sync: 6h ago'},
+  ], kpis:{total:8, published:2, inReview:4, sources:3}},
+
+  markets:   { label:'Markets',      acc:'#c8a96e', accRgb:'200,169,110', accDim:'rgba(200,169,110,.12)', accGlow:'rgba(200,169,110,.2)', accSoft:'rgba(200,169,110,.08)', reports:[
+    {title:'NSE Mid-Cap Momentum Report Q4 2026',   stage:'published',  priority:'high', author:'D. Shah',     updated:'02 Nov 2026'},
+    {title:'FPI Flow Analysis — Emerging Markets',  stage:'submitted',  priority:'high', author:'P. Verma',    updated:'04 Nov 2026'},
+    {title:'Interest Rate Sensitivity Model 2026',  stage:'draft',      priority:'med',  author:'A. Kumar',    updated:'03 Nov 2026'},
+  ], factsheets:[
+    {title:'Mid-Cap Momentum Index',   sub:'Weekly ranking of NSE mid-cap momentum factors', metrics:[{val:'200',label:'Stocks'},{val:'Weekly',label:'Update'}]},
+    {title:'FPI Flow Dashboard',       sub:'Foreign portfolio investment flow tracker',       metrics:[{val:'45',label:'Markets'},{val:'Daily',label:'Update'}]},
+  ], sources:[
+    {name:'NSE Market Feed',          tier:'T1', status:'live',  meta:'Last sync: 15m ago'},
+    {name:'RBI Monetary Policy Data', tier:'T1', status:'live',  meta:'Last sync: 1h ago'},
+    {name:'Bloomberg Macro Feed',     tier:'T1', status:'live',  meta:'Last sync: 30m ago'},
+  ], kpis:{total:11, published:3, inReview:2, sources:3}},
+
+  packaging: { label:'Packaging',    acc:'#e85d4a', accRgb:'232,93,74',   accDim:'rgba(232,93,74,.12)',   accGlow:'rgba(232,93,74,.2)',   accSoft:'rgba(232,93,74,.08)',   reports:[
+    {title:'Plastic Packaging Regulatory Shift 2026',  stage:'published',      priority:'high', author:'S. Pillai',   updated:'01 Nov 2026'},
+    {title:'Flexible vs Rigid Packaging — FMCG India', stage:'senior_review',  priority:'med',  author:'L. Menon',    updated:'04 Nov 2026'},
+    {title:'Sustainable Packaging Adoption Index',     stage:'draft',          priority:'med',  author:'R. Thomas',   updated:'02 Nov 2026'},
+  ], factsheets:[
+    {title:'Plastic Regulation Tracker', sub:'Pan-India state-level plastic ban compliance', metrics:[{val:'28',label:'States'},{val:'Monthly',label:'Update'}]},
+    {title:'Sustainable Pack Index',     sub:'Adoption rates across FMCG top 100',           metrics:[{val:'100',label:'Companies'},{val:'Quarterly',label:'Update'}]},
+  ], sources:[
+    {name:'BIS Packaging Standards Portal',  tier:'T1', status:'live',  meta:'Last sync: 1d ago'},
+    {name:'FSSAI Compliance Database',       tier:'T1', status:'live',  meta:'Last sync: 6h ago'},
+    {name:'CPCB Plastic Waste Data',         tier:'T2', status:'stale', meta:'Last sync: 2d ago'},
+  ], kpis:{total:7, published:2, inReview:2, sources:3}},
+
+  startups:  { label:'Startups',     acc:'#9b72e8', accRgb:'155,114,232', accDim:'rgba(155,114,232,.12)', accGlow:'rgba(155,114,232,.2)', accSoft:'rgba(155,114,232,.08)', reports:[
+    {title:'India Deep-Tech Funding Landscape H2 2026', stage:'published',  priority:'high', author:'C. Rajan',    updated:'03 Nov 2026'},
+    {title:'Series A Valuation Benchmark Report',       stage:'approved',   priority:'high', author:'M. Khanna',   updated:'04 Nov 2026'},
+    {title:'Startup Failure Analysis 2026',             stage:'submitted',  priority:'med',  author:'R. Nair',     updated:'02 Nov 2026'},
+  ], factsheets:[
+    {title:'Deep-Tech Funding Monitor', sub:'Bi-weekly VC/PE deal flow across 8 sectors', metrics:[{val:'8',label:'Sectors'},{val:'Bi-weekly',label:'Update'}]},
+    {title:'Series A Benchmark Index',  sub:'Valuation multiples for pre-revenue startups', metrics:[{val:'120+',label:'Deals YTD'},{val:'Monthly',label:'Update'}]},
+  ], sources:[
+    {name:'Tracxn Deal Database',      tier:'T1', status:'live',  meta:'Last sync: 1h ago'},
+    {name:'MCA Incorporation Filings', tier:'T1', status:'live',  meta:'Last sync: 1d ago'},
+    {name:'SEBI AIF Disclosures',      tier:'T2', status:'live',  meta:'Last sync: 6h ago'},
+  ], kpis:{total:10, published:4, inReview:3, sources:3}},
+};
+
+let current = 'epi';
+
+function switchTab(key, btn){
+  current = key;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  renderWorkspace(key);
+}
+
+function esc(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+function renderWorkspace(key){
+  const v = VERTICALS[key];
+  // Apply accent to :root
+  document.documentElement.style.setProperty('--acc', v.acc);
+  document.documentElement.style.setProperty('--acc-dim', v.accDim);
+  document.documentElement.style.setProperty('--acc-glow', v.accGlow);
+  document.documentElement.style.setProperty('--acc-soft', v.accSoft);
+
+  const stageBtns = {
+    published:'<span class="stage-pill s-published">Published</span>',
+    approved:'<span class="stage-pill s-approved">Approved</span>',
+    head_review:'<span class="stage-pill" style="background:rgba(200,169,110,.1);color:#c8a96e;border:1px solid rgba(200,169,110,.2)">Head Review</span>',
+    senior_review:'<span class="stage-pill s-senior_review">Senior Review</span>',
+    submitted:'<span class="stage-pill s-submitted">Submitted</span>',
+    draft:'<span class="stage-pill s-draft">Draft</span>',
+  };
+  const actionBtns = {
+    published:'<span style="font-size:11px;color:#3d4a60">—</span>',
+    approved:'<button class="btn-publish">Publish</button>',
+    head_review:'<button class="btn-approve">Approve</button> <button class="btn-reject">Reject</button>',
+    senior_review:'<button class="btn-approve">Approve</button> <button class="btn-reject">Reject</button>',
+    submitted:'<button class="btn-approve">Take for Review</button>',
+    draft:'<button class="btn-approve">Submit</button>',
+  };
+
+  const reportRows = v.reports.map(r=>`
+    <tr>
+      <td><div style="font-weight:500">${esc(r.title)}</div></td>
+      <td>${stageBtns[r.stage]||r.stage}</td>
+      <td><span class="priority-dot p-${r.priority}"></span>${r.priority}</td>
+      <td style="font-size:11.5px;color:#7a8599">${esc(r.author)}</td>
+      <td style="font-size:11px;font-family:monospace;color:#7a8599">${r.updated}</td>
+      <td>${actionBtns[r.stage]||'—'}</td>
+    </tr>`).join('');
+
+  const fsCards = v.factsheets.map(f=>`
+    <div class="fs-card">
+      <div class="fs-status">PUBLISHED</div>
+      <div class="fs-title">${esc(f.title)}</div>
+      <div class="fs-sub">${esc(f.sub)}</div>
+      <div class="fs-metrics">${(f.metrics||[]).map(m=>`
+        <div><div class="fs-metric-val">${esc(m.val)}</div><div class="fs-metric-label">${esc(m.label)}</div></div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  const sourceRows = v.sources.map(s=>`
+    <div class="source-row">
+      <div class="source-info">
+        <span class="source-status status-${s.status}"></span>
+        <span class="source-name">${esc(s.name)}</span>
+        <span class="source-tier">${s.tier}</span>
+      </div>
+      <div class="source-meta">${s.meta}</div>
+    </div>`).join('');
+
+  document.getElementById('panels').innerHTML = `
+  <div class="workspace">
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="vertical-pill"><span class="vertical-dot"></span>${v.label}</div>
+        <div class="sidebar-title">Intelligence<br>Platform</div>
+        <div class="sidebar-sub">Analyst Workspace</div>
+      </div>
+      <nav class="nav">
+        <span class="nav-section-label">Workspace</span>
+        <div class="nav-item active"><span class="icon">📊</span>Dashboard</div>
+        <div class="nav-item"><span class="icon">📋</span>Reports</div>
+        <div class="nav-item"><span class="icon">📄</span>Factsheets</div>
+        <div class="nav-item"><span class="icon">🔗</span>Data Sources</div>
+        <div class="nav-item"><span class="icon">⬆️</span>Upload Model</div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-row">
+          <div class="user-avatar">H</div>
+          <div>
+            <div class="user-name">Head of Research</div>
+            <div class="user-role">HEAD · ${v.label.toUpperCase()}</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <div class="main-area">
+      <div class="topbar">
+        <div class="topbar-title">Dashboard — ${v.label} Intelligence</div>
+        <span class="role-badge">Head of Research</span>
+      </div>
+      <div class="content">
+        <!-- KPIs -->
+        <div class="kpi-row">
+          <div class="kpi"><div class="kpi-val">${v.kpis.total}</div><div class="kpi-label">Total Reports</div><div class="kpi-delta">↑ Active pipeline</div></div>
+          <div class="kpi"><div class="kpi-val">${v.kpis.published}</div><div class="kpi-label">Published</div><div class="kpi-delta">↑ This quarter</div></div>
+          <div class="kpi"><div class="kpi-val">${v.kpis.inReview}</div><div class="kpi-label">In Review</div><div class="kpi-delta">Awaiting action</div></div>
+          <div class="kpi"><div class="kpi-val">${v.kpis.sources}</div><div class="kpi-label">Data Sources</div><div class="kpi-delta">Live feeds</div></div>
+        </div>
+
+        <!-- Reports -->
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">${v.label} Reports</div>
+            <button class="btn-primary">+ New Report</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="report-table">
+              <thead><tr><th>Title</th><th>Stage</th><th>Priority</th><th>Author</th><th>Updated</th><th>Actions</th></tr></thead>
+              <tbody>${reportRows}</tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Factsheets -->
+        <div class="section">
+          <div class="section-head"><div class="section-title">Published Factsheets — ${v.label}</div></div>
+          <div class="factsheet-grid">${fsCards}</div>
+        </div>
+
+        <!-- Data sources -->
+        <div class="section">
+          <div class="section-head"><div class="section-title">Data Sources — ${v.label}</div></div>
+          <div>${sourceRows}</div>
+        </div>
+
+        <!-- Upload zone -->
+        <div class="section">
+          <div class="section-head"><div class="section-title">Upload Research Model</div></div>
+          <div class="upload-zone">
+            <div class="upload-icon">📁</div>
+            <div class="upload-label">Drop your Excel, PowerPoint, or Word file here</div>
+            <div class="upload-hint">XLSX · PPTX · DOCX · Max 50 MB</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>`;
+}
+
+// init
+renderWorkspace('epi');
+</script>
+</body>
+</html>

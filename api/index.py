@@ -309,6 +309,7 @@ _TRADE_HTML      = _load_page("trade-intelligence.html")
 _MARKETS_HTML    = _load_page("markets-intelligence.html")
 _PACKAGING_HTML  = _load_page("packaging-intelligence.html")
 _STARTUPS_HTML   = _load_page("startup-intelligence.html")
+_PREVIEW_HTML    = _load_page("preview.html")
 
 # ── FastAPI app (no lifespan — serverless safe) ───────────────────────────────
 app = FastAPI(
@@ -349,8 +350,8 @@ except Exception:
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def root():
     """Login page — served as the homepage. Supabase credentials injected from env."""
-    supa_url = os.environ.get("SUPABASE_URL", "")
-    supa_key = os.environ.get("SUPABASE_ANON_KEY", "")
+    supa_url = os.environ.get("SUPABASE_URL", "").rstrip("/")   # strip trailing slash
+    supa_key = os.environ.get("SUPABASE_ANON_KEY", "").strip()
     html = _LOGIN_HTML.replace("'{SUPA_URL}'", f"'{supa_url}'").replace("'{SUPA_KEY}'", f"'{supa_key}'")
     return HTMLResponse(content=html)
 
@@ -1634,8 +1635,8 @@ async def workflow_page():
 # ── Intelligence platform pages ───────────────────────────────────────────────
 def _inject_supa(html: str) -> str:
     """Inject Supabase credentials into a page at request time."""
-    url = os.environ.get("SUPABASE_URL", "")
-    key = os.environ.get("SUPABASE_ANON_KEY", "")
+    url = os.environ.get("SUPABASE_URL", "").rstrip("/")   # strip trailing slash — prevents "Invalid path" error
+    key = os.environ.get("SUPABASE_ANON_KEY", "").strip()
     return html.replace("'{SUPA_URL}'", f"'{url}'").replace("'{SUPA_KEY}'", f"'{key}'")\
                .replace("window.__SUPA_URL__ = ''", f"window.__SUPA_URL__ = '{url}'")\
                .replace("window.__SUPA_KEY__ = ''", f"window.__SUPA_KEY__ = '{key}'")\
@@ -1682,3 +1683,10 @@ async def packaging_page():
 async def startups_page():
     """Startups analyst workspace — requires Supabase auth (startups or all vertical)."""
     return HTMLResponse(content=_inject_supa(_STARTUPS_HTML))
+
+
+@app.get("/preview", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/preview/", response_class=HTMLResponse, include_in_schema=False)
+async def preview_page():
+    """Read-only preview of all 6 intelligence workspaces — no login required."""
+    return HTMLResponse(content=_PREVIEW_HTML)
