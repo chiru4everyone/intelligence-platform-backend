@@ -290,6 +290,22 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
 </body>
 </html>"""
 
+# ── Epi intelligence page (embedded — no filesystem reads at runtime) ─────────
+# File: pages/epi-intelligence.html — embedded here for Vercel serverless.
+# Supabase credentials are injected at request time via string replacement.
+import pathlib as _pl
+_pages_dir = _pl.Path(__file__).parent.parent / "pages"
+
+def _load_page(filename: str) -> str:
+    """Load a page from pages/ directory at import time (safe — happens at build)."""
+    try:
+        return (_pages_dir / filename).read_text(encoding="utf-8")
+    except Exception:
+        return f"<html><body><h1>{filename} not found</h1></body></html>"
+
+_EPI_HTML        = _load_page("epi-intelligence.html")
+# Remaining pages will be added here as they are built
+
 # ── FastAPI app (no lifespan — serverless safe) ───────────────────────────────
 app = FastAPI(
     title="Intelligence Platform API",
@@ -1609,3 +1625,21 @@ async def master_delete_report(request: Request, report_id: str):
 async def workflow_page():
     """Master Gantt workflow dashboard — requires master session in sessionStorage."""
     return HTMLResponse(content=_GANTT_HTML)
+
+
+# ── Intelligence platform pages ───────────────────────────────────────────────
+def _inject_supa(html: str) -> str:
+    """Inject Supabase credentials into a page at request time."""
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_ANON_KEY", "")
+    return html.replace("'{SUPA_URL}'", f"'{url}'").replace("'{SUPA_KEY}'", f"'{key}'")\
+               .replace("window.__SUPA_URL__ = ''", f"window.__SUPA_URL__ = '{url}'")\
+               .replace("window.__SUPA_KEY__ = ''", f"window.__SUPA_KEY__ = '{key}'")\
+               .replace("{SUPA_URL}", url).replace("{SUPA_KEY}", key)
+
+
+@app.get("/epi-intelligence", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/epi-intelligence/", response_class=HTMLResponse, include_in_schema=False)
+async def epi_page():
+    """Epidemiology analyst workspace — requires Supabase auth (epi or all vertical)."""
+    return HTMLResponse(content=_inject_supa(_EPI_HTML))
