@@ -1869,6 +1869,102 @@ async def get_deliverables(request: Request, vertical: str, limit: int = 20):
     return {"vertical": vertical, "deliverables": enriched, "count": len(enriched)}
 
 
+# ── /api/deliverables/{id}/status ────────────────────────────────────────────
+# Workflow state machine for deliverable approval pipeline:
+#   submitted → senior_approved → approved → published
+#   any stage → rejected  (with optional note)
+#
+# Role permissions:
+#   senior : submitted → senior_approved | submitted → rejected
+#   head   : senior_approved → approved | approved → published | any → rejected
+
+WORKFLOW_TRANSITIONS = {
+    # (current_status, role) → allowed next statuses
+    ("submitted",       "senior"): {"senior_approved", "rejected"},
+    ("submitted",       "head"):   {"senior_approved", "approved", "rejected"},
+    ("senior_approved", "head"):   {"approved", "rejected"},
+    ("approved",        "head"):   {"published", "rejected"},
+}
+
+
+@app.patch("/api/deliverables/{deliverable_id}/status", tags=["deliverables"])
+async def update_deliverable_status(request: Request, deliverable_id: str):
+    """
+    Advance or reject a deliverable through the approval pipeline.
+    Body: { "status": "approved"|"rejected"|..., "note": "optional reason" }
+    """
+    profile = await _resolve_profile(request)
+    role = profile.get("role", "")
+    if role not in ("senior", "head"):
+        raise HTTPException(status_code=403, detail="Only senior or head can update deliverable status")
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    new_status = (body.get("status") or "").strip()
+    note = (body.get("note") or "").strip()
+
+    if not new_status:
+        raise HTTPException(status_code=400, detail="'status' field is required")
+
+    supa = _get_supa_service() or _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    # Fetch current row
+    try:
+        row_resp = (
+            supa.table("model_uploads")
+            .select("id, status, vertical, file_type")
+            .eq("id", deliverable_id)
+            .single()
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Fetch failed: {exc}")
+
+    if not row_resp.data:
+        raise HTTPException(status_code=404, detail="Deliverable not found")
+
+    row = row_resp.data
+    current_status = row.get("status", "")
+
+    # Vertical access check
+    profile_vertical = profile.get("vertical", "")
+    if profile_vertical != "all" and profile_vertical != row.get("vertical", ""):
+        raise HTTPException(status_code=403, detail="Access denied for this vertical")
+
+    # Validate transition
+    allowed = WORKFLOW_TRANSITIONS.get((current_status, role), set())
+    if new_status not in allowed:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Role '{role}' cannot move status from '{current_status}' to '{new_status}'. "
+                   f"Allowed transitions: {sorted(allowed) or 'none'}"
+        )
+
+    # Build update payload
+    update: dict = {"status": new_status}
+    if note:
+        update["reviewer_notes"] = note
+
+    try:
+        supa.table("model_uploads").update(update).eq("id", deliverable_id).execute()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Update failed: {exc}")
+
+    return {
+        "id":         deliverable_id,
+        "status":     new_status,
+        "prev_status": current_status,
+        "note":       note or None,
+        "updated_by": profile.get("email", ""),
+        "role":       role,
+    }
+
+
 # ── /workflow — Gantt dashboard page ─────────────────────────────────────────
 @app.get("/workflow", response_class=HTMLResponse, include_in_schema=False)
 async def workflow_page():

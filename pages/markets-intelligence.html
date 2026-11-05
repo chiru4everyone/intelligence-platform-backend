@@ -166,6 +166,13 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
 .ufile-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
 .ufile-meta{font-size:10.5px;color:var(--fog);font-family:var(--ff-mono)}
 .ufile-status{font-family:var(--ff-mono);font-size:9px;padding:2px 8px;border-radius:10px}
+.ufile-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.wf-btn{font-family:var(--ff-mono);font-size:9px;padding:3px 9px;border-radius:10px;border:1px solid;cursor:pointer;font-weight:600;letter-spacing:.5px;transition:opacity .15s}
+.wf-btn:hover{opacity:.8}
+.wf-approve{background:rgba(76,255,145,.1);color:#4cff91;border-color:rgba(76,255,145,.2)}
+.wf-reject{background:rgba(232,93,74,.08);color:#e85d4a;border-color:rgba(232,93,74,.18)}
+.wf-publish{background:var(--acc-dim);color:var(--acc);border-color:var(--acc-glow)}
+.ufile-note{font-size:10px;color:#e85d4a;font-family:var(--ff-mono);margin-top:3px;opacity:.85}
 .ufile-dl{font-size:14px;color:var(--fog);text-decoration:none;line-height:1;padding:2px 4px;border-radius:4px;transition:color .15s}
 .ufile-dl:hover{color:var(--acc)}
 .us-attached{background:rgba(76,255,145,.08);color:#4cff91;border:1px solid rgba(76,255,145,.15)}
@@ -546,7 +553,7 @@ Top Geography,India,Q4 2026,Maharashtra,text,,neutral</pre>
   let supabase = null;
   if(SUPA_URL && SUPA_KEY && window.supabase){
     supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-    window._supa = supabase;
+    window._supa = supabase; window._userRole = '';
   }
 
   const VERTICAL = 'markets';
@@ -570,6 +577,7 @@ Top Geography,India,Q4 2026,Maharashtra,text,,neutral</pre>
       const res = await fetch('/api/me', { headers: { 'Authorization': 'Bearer '+session.access_token }});
       if(!res.ok){ window.location.href='/'; return; }
       currentProfile = await res.json();
+      window._userRole = currentProfile.role || '';
       // Block wrong vertical
       if(currentProfile.vertical !== VERTICAL && currentProfile.vertical !== 'all'){
         window.location.href = currentProfile.portal || '/';
@@ -962,12 +970,53 @@ Top Geography,India,Q4 2026,Maharashtra,text,,neutral</pre>
   }
   window.populateReportDropdowns = populateReportDropdowns;
 
+  // Status → display key mapping
+  const STATUS_KEY = {
+    draft:'pending', submitted:'review', senior_approved:'review',
+    approved:'attached', published:'attached', rejected:'pending'
+  };
+  // Status → human label
+  const STATUS_LABEL = {
+    draft:'DRAFT', submitted:'SUBMITTED', senior_approved:'SR APPROVED',
+    approved:'APPROVED', published:'PUBLISHED', rejected:'REJECTED'
+  };
+
+  // Workflow action buttons based on current status + viewer role
+  function _delivActions(r, role){
+    const id = r.id;
+    const st = r.status || 'draft';
+    const btns = [];
+    if(role==='senior'){
+      if(st==='submitted'){
+        btns.push(`<button class="wf-btn wf-approve" onclick="updateDelivStatus('${id}','senior_approved')">✓ Approve</button>`);
+        btns.push(`<button class="wf-btn wf-reject"  onclick="updateDelivStatus('${id}','rejected')">✕ Reject</button>`);
+      }
+    }
+    if(role==='head'){
+      if(st==='submitted'){
+        btns.push(`<button class="wf-btn wf-approve" onclick="updateDelivStatus('${id}','senior_approved')">✓ SR Approve</button>`);
+        btns.push(`<button class="wf-btn wf-reject"  onclick="updateDelivStatus('${id}','rejected')">✕ Reject</button>`);
+      } else if(st==='senior_approved'){
+        btns.push(`<button class="wf-btn wf-approve" onclick="updateDelivStatus('${id}','approved')">✓ Final Approve</button>`);
+        btns.push(`<button class="wf-btn wf-reject"  onclick="updateDelivStatus('${id}','rejected')">✕ Reject</button>`);
+      } else if(st==='approved'){
+        btns.push(`<button class="wf-btn wf-publish" onclick="updateDelivStatus('${id}','published')">🚀 Publish</button>`);
+        btns.push(`<button class="wf-btn wf-reject"  onclick="updateDelivStatus('${id}','rejected')">✕ Reject</button>`);
+      }
+    }
+    return btns.join('');
+  }
+
   function _renderDelivRow(r){
     const uploadedOn = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
     const asof = (r.platform_tabs?.asof) || '';
-    const statusKey = r.status==='approved'?'attached':r.status==='submitted'?'review':'pending';
-    const dlLink = r.signed_url ? `<a href="${r.signed_url}" target="_blank" class="ufile-dl" title="Download">⬇</a>` : '';
-    return `<div class="ufile">
+    const stKey = STATUS_KEY[r.status] || 'pending';
+    const stLabel = STATUS_LABEL[r.status] || (r.status||'DRAFT').toUpperCase();
+    const dlLink = r.signed_url ? `<a href="${r.signed_url}" target="_blank" class="ufile-dl" title="Download file">⬇</a>` : '';
+    const note = r.reviewer_notes ? `<div class="ufile-note">${esc(r.reviewer_notes)}</div>` : '';
+    const role = window._userRole || '';
+    const actions = _delivActions(r, role);
+    return `<div class="ufile" id="ufile-${r.id}">
       <div class="ufile-icon">${fileIcon(r.file_type||'docx')}</div>
       <div class="ufile-info">
         <div class="ufile-name">${esc(r.model_title||'Untitled')}</div>
@@ -975,10 +1024,12 @@ Top Geography,India,Q4 2026,Maharashtra,text,,neutral</pre>
           <span class="ufile-datechip">📅 ${uploadedOn}</span>
           ${asof ? `· <span class="ufile-datechip">🗓 Data as of ${fmtDate(asof)}</span> ${dataAge(asof)}` : ''}
         </div>
+        ${note}
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
+      <div class="ufile-actions">
+        ${actions}
         ${dlLink}
-        <span class="ufile-status us-${statusKey}">${(r.status||'draft').toUpperCase()}</span>
+        <span class="ufile-status us-${stKey}" id="ufile-status-${r.id}">${stLabel}</span>
       </div>
     </div>`;
   }
@@ -1025,6 +1076,73 @@ Top Geography,India,Q4 2026,Maharashtra,text,,neutral</pre>
     });
   }
   window.loadDeliverablesList = loadDeliverablesList;
+
+  async function updateDelivStatus(id, newStatus){
+    // Optional rejection note
+    let note = '';
+    if(newStatus === 'rejected'){
+      note = window.prompt('Rejection reason (optional):') || '';
+      if(note === null) return; // cancelled
+    }
+
+    let token = '';
+    try{
+      const { data: { session } } = await window._supa.auth.getSession();
+      token = session?.access_token || '';
+    }catch(_){}
+    if(!token){ alert('Session expired — please log in again.'); return; }
+
+    // Optimistic UI update
+    const statusEl = document.getElementById('ufile-status-'+id);
+    const rowEl    = document.getElementById('ufile-'+id);
+    if(statusEl){
+      statusEl.textContent = '…';
+      statusEl.className = 'ufile-status us-review';
+    }
+
+    try{
+      const res = await fetch(`/api/deliverables/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus, note }),
+      });
+
+      if(res.ok){
+        const json = await res.json();
+        const stKey   = {draft:'pending',submitted:'review',senior_approved:'review',approved:'attached',published:'attached',rejected:'pending'}[json.status] || 'pending';
+        const stLabel = {draft:'DRAFT',submitted:'SUBMITTED',senior_approved:'SR APPROVED',approved:'APPROVED',published:'PUBLISHED',rejected:'REJECTED'}[json.status] || json.status.toUpperCase();
+        if(statusEl){
+          statusEl.textContent = stLabel;
+          statusEl.className = `ufile-status us-${stKey}`;
+        }
+        // Remove action buttons from this row (transition done)
+        if(rowEl){
+          rowEl.querySelectorAll('.wf-btn').forEach(b=>b.remove());
+          // Add rejection note if present
+          if(note && newStatus==='rejected'){
+            const infoEl = rowEl.querySelector('.ufile-info');
+            if(infoEl && !infoEl.querySelector('.ufile-note')){
+              infoEl.insertAdjacentHTML('beforeend', `<div class="ufile-note">${esc(note)}</div>`);
+            }
+          }
+        }
+      } else {
+        const err = await res.json().catch(()=>({detail:'Update failed'}));
+        if(statusEl){ statusEl.textContent = 'ERROR'; statusEl.className='ufile-status us-pending'; }
+        alert('Status update failed: ' + (err.detail || res.statusText));
+        // Restore buttons by re-rendering the list
+        setTimeout(()=>loadDeliverablesList(), 500);
+      }
+    }catch(e){
+      if(statusEl){ statusEl.textContent = 'ERROR'; statusEl.className='ufile-status us-pending'; }
+      alert('Network error: ' + e.message);
+      setTimeout(()=>loadDeliverablesList(), 500);
+    }
+  }
+  window.updateDelivStatus = updateDelivStatus;
 
   /* ── Navigation ── */
   const sections = ['dashboard','reports','factsheets','sources','deliverables'];
