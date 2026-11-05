@@ -17,9 +17,11 @@ _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
+from functools import wraps
+from typing import Optional
 
 # ── Login page HTML (embedded — no filesystem dependency on serverless) ──────
 _LOGIN_HTML = r"""<!doctype html>
@@ -240,7 +242,29 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
       const ok = await signIn(emailInput.value.trim(), passInput.value, activeRole);
       if(ok) {
         showToast('Welcome back — ' + c.label + ' session started', '✓');
-        setTimeout(() => { window.location.href = '/docs'; }, 1000);
+        setTimeout(async () => {
+          try {
+            const sess = (await supabase.auth.getSession()).data.session;
+            const res = await fetch('/api/me', {
+              headers: { 'Authorization': 'Bearer ' + sess.access_token }
+            });
+            if(res.ok) {
+              const profile = await res.json();
+              const portals = {
+                epi:       '/epi-intelligence/',
+                agri:      '/agri-intelligence/',
+                trade:     '/trade-intelligence/',
+                markets:   '/markets-intelligence/',
+                packaging: '/packaging-intelligence/',
+                startups:  '/startup-intelligence/',
+                all:       '/dashboard/'
+              };
+              window.location.href = portals[profile.vertical] || '/dashboard/';
+            } else {
+              window.location.href = '/dashboard/';
+            }
+          } catch(_) { window.location.href = '/dashboard/'; }
+        }, 1000);
       }
     } finally {
       signInBtn.textContent = orig;
@@ -310,3 +334,156 @@ async def root():
 @app.get("/health", tags=["health"])
 async def health():
     return {"status": "ok", "version": "0.1.0", "service": "Intelligence Platform API"}
+
+
+# ── Supabase client (lazy — only initialised when env vars are present) ───────
+def _get_supa():
+    try:
+        from supabase import create_client
+        url = os.environ.get("SUPABASE_URL", "")
+        key = os.environ.get("SUPABASE_ANON_KEY", "")
+        if not url or not key:
+            return None
+        return create_client(url, key)
+    except Exception:
+        return None
+
+
+# ── Role + vertical access matrix ─────────────────────────────────────────────
+PERMISSIONS = {
+    "analyst": {
+        "can_view":    True,
+        "can_upload":  False,
+        "can_approve": False,
+        "can_publish": False,
+    },
+    "senior": {
+        "can_view":    True,
+        "can_upload":  True,
+        "can_approve": True,
+        "can_publish": False,
+    },
+    "head": {
+        "can_view":    True,
+        "can_upload":  True,
+        "can_approve": True,
+        "can_publish": True,
+    },
+}
+
+PORTAL_MAP = {
+    "epi":       "/epi-intelligence/",
+    "agri":      "/agri-intelligence/",
+    "trade":     "/trade-intelligence/",
+    "markets":   "/markets-intelligence/",
+    "packaging": "/packaging-intelligence/",
+    "startups":  "/startup-intelligence/",
+    "all":       "/dashboard/",
+}
+
+
+async def _resolve_profile(request: Request):
+    """Extract Bearer token → verify with Supabase → return profile dict."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+    token = auth.split(" ", 1)[1]
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Auth service not configured")
+    try:
+        user_resp = supa.auth.get_user(token)
+        if not user_resp or not user_resp.user:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        uid = user_resp.user.id
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail=f"Token verification failed: {exc}")
+    try:
+        profile_resp = (
+            supa.table("profiles")
+            .select("role, vertical, full_name, email, is_active")
+            .eq("id", uid)
+            .single()
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Profile fetch failed: {exc}")
+    if not profile_resp.data:
+        raise HTTPException(status_code=403, detail="No profile found for this user")
+    p = profile_resp.data
+    if not p.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Account is deactivated — contact your Head of Research")
+    return p
+
+
+def require_role(*allowed_roles: str):
+    """
+    Decorator for route handlers that enforces role-based access.
+
+    Usage:
+        @app.get("/api/admin/something")
+        @require_role("senior", "head")
+        async def my_route(request: Request): ...
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(request: Request, *args, **kwargs):
+            profile = await _resolve_profile(request)
+            if profile["role"] not in allowed_roles:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Role '{profile['role']}' is not permitted. Required: {list(allowed_roles)}"
+                )
+            # Attach profile to request state so the handler can read it
+            request.state.role     = profile["role"]
+            request.state.vertical = profile["vertical"]
+            request.state.email    = profile.get("email", "")
+            request.state.permissions = PERMISSIONS.get(profile["role"], {})
+            return await func(request, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+# ── /api/me ───────────────────────────────────────────────────────────────────
+@app.get("/api/me", tags=["auth"])
+async def get_me(request: Request):
+    """
+    Return the authenticated user's role, vertical, and portal URL.
+
+    Called by the login page after sign-in to determine where to redirect.
+    Requires: Authorization: Bearer <supabase_access_token>
+    """
+    profile = await _resolve_profile(request)
+    return {
+        "role":        profile["role"],
+        "vertical":    profile["vertical"],
+        "full_name":   profile.get("full_name"),
+        "email":       profile.get("email"),
+        "permissions": PERMISSIONS.get(profile["role"], {}),
+        "portal":      PORTAL_MAP.get(profile["vertical"], "/dashboard/"),
+    }
+
+
+# ── Example protected routes (extend as needed) ───────────────────────────────
+@app.get("/api/admin/users", tags=["admin"])
+@require_role("head")
+async def list_users(request: Request):
+    """Head of Research only — list all analyst profiles."""
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Auth service not configured")
+    resp = supa.table("profiles").select("id, email, full_name, role, vertical, is_active, created_at").execute()
+    return {"users": resp.data or []}
+
+
+@app.post("/api/admin/deactivate/{user_id}", tags=["admin"])
+@require_role("head")
+async def deactivate_user(request: Request, user_id: str):
+    """Head of Research only — deactivate an analyst account."""
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Auth service not configured")
+    supa.table("profiles").update({"is_active": False}).eq("id", user_id).execute()
+    return {"status": "deactivated", "user_id": user_id}
