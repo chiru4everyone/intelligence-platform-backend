@@ -178,6 +178,16 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
 .tl-delta{font-family:var(--ff-mono);font-size:10px;padding:1px 6px;border-radius:10px;margin-left:6px}
 .tl-up{background:rgba(76,255,145,.08);color:#4cff91}
 .tl-down{background:rgba(232,93,74,.08);color:#e85d4a}
+/* data age badges */
+.age-badge{font-family:var(--ff-mono);font-size:9px;padding:1px 7px;border-radius:10px;font-weight:600;vertical-align:middle}
+.age-fresh{background:rgba(76,255,145,.1);color:#4cff91;border:1px solid rgba(76,255,145,.2)}
+.age-recent{background:rgba(46,196,182,.1);color:var(--acc);border:1px solid var(--acc-glow)}
+.age-moderate{background:rgba(200,169,110,.1);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
+.age-stale{background:rgba(232,93,74,.08);color:#e85d4a;border:1px solid rgba(232,93,74,.18)}
+.age-old{background:rgba(155,114,232,.1);color:#9b72e8;border:1px solid rgba(155,114,232,.2)}
+.ufile-datechip{font-family:var(--ff-mono);font-size:9.5px;color:var(--fog)}
+/* date input styling */
+input[type="date"].mf-input{color-scheme:dark}
 
 /* ── Empty state ── */
 .empty{padding:36px;text-align:center;color:var(--fog);font-size:13px;font-style:italic}
@@ -339,6 +349,8 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
                   <div class="mf-full"><label class="mf-label">Link to Report</label><select class="mf-select" id="report-link"></select></div>
                   <div><label class="mf-label">Version</label><input class="mf-input" id="report-version" placeholder="e.g. v1.0"></div>
                   <div><label class="mf-label">Page Count</label><input class="mf-input" id="report-pages" placeholder="e.g. 48" type="number"></div>
+                  <div><label class="mf-label">Data as of</label><input class="mf-input" id="report-asof" type="date" title="The date up to which the data in this report is current"></div>
+                  <div><label class="mf-label">Coverage Period</label><input class="mf-input" id="report-coverage" placeholder="e.g. Jan 2024 – Oct 2026"></div>
                   <div class="mf-full"><label class="mf-label">Reviewer Notes</label><input class="mf-input" id="report-notes" placeholder="Notes for senior/head…"></div>
                   <div class="mf-full"><label class="mf-label">Visibility</label>
                     <select class="mf-select" id="report-vis">
@@ -375,6 +387,8 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
                   <div class="mf-full"><label class="mf-label">Link to Report</label><select class="mf-select" id="model-link"></select></div>
                   <div><label class="mf-label">Model Version</label><input class="mf-input" id="model-version" placeholder="e.g. v2.0"></div>
                   <div><label class="mf-label">Sheet Count</label><input class="mf-input" id="model-sheets" placeholder="e.g. 12" type="number"></div>
+                  <div><label class="mf-label">Data as of</label><input class="mf-input" id="model-asof" type="date" title="The date up to which raw data in this model is current"></div>
+                  <div><label class="mf-label">Base Year</label><input class="mf-input" id="model-baseyear" placeholder="e.g. 2024"></div>
                   <div class="mf-full"><label class="mf-label">Model Type</label>
                     <select class="mf-select" id="model-type">
                       <option>Epidemiological Projection</option>
@@ -413,6 +427,8 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
                   <div class="mf-full"><label class="mf-label">Link to Report</label><select class="mf-select" id="deck-link"></select></div>
                   <div><label class="mf-label">Slide Count</label><input class="mf-input" id="deck-slides" placeholder="e.g. 16" type="number"></div>
                   <div><label class="mf-label">Deck Version</label><input class="mf-input" id="deck-version" placeholder="e.g. v1.0"></div>
+                  <div><label class="mf-label">Data as of</label><input class="mf-input" id="deck-asof" type="date" title="The date up to which the numbers in this deck are current"></div>
+                  <div><label class="mf-label">Presentation Date</label><input class="mf-input" id="deck-presdate" type="date" title="Scheduled client presentation date (optional)"></div>
                   <div class="mf-full"><label class="mf-label">Audience</label>
                     <select class="mf-select" id="deck-audience">
                       <option>Client — C-Suite</option>
@@ -462,6 +478,8 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
                   <div class="mf-full"><label class="mf-label">Link to Report</label><select class="mf-select" id="data-link"></select></div>
                   <div><label class="mf-label">Reference Period</label><input class="mf-input" id="data-period" placeholder="e.g. Q4 2026"></div>
                   <div><label class="mf-label">Geography</label><input class="mf-input" id="data-geo" placeholder="e.g. India + 12 Markets"></div>
+                  <div><label class="mf-label">Data as of</label><input class="mf-input" id="data-asof" type="date" title="The cut-off date for the metrics in this file"></div>
+                  <div><label class="mf-label">Next Update</label><input class="mf-input" id="data-nextupdate" placeholder="e.g. Dec 2026 / Q1 2027"></div>
                   <div class="mf-full"><label class="mf-label">Publish to Front-End</label>
                     <select class="mf-select" id="data-publish">
                       <option value="yes">Yes — publish on report approval</option>
@@ -800,9 +818,27 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
   function triggerUpload(id){ document.getElementById(id).click(); }
   window.triggerUpload = triggerUpload;
 
+  function fmtDate(d){
+    if(!d) return '—';
+    return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  }
+  function dataAge(asofVal){
+    if(!asofVal) return '';
+    const days = Math.floor((Date.now()-new Date(asofVal).getTime())/(1000*86400));
+    if(days<0) return '<span class="age-badge age-fresh">Future</span>';
+    if(days===0) return '<span class="age-badge age-fresh">Today</span>';
+    if(days<=7) return `<span class="age-badge age-fresh">${days}d old</span>`;
+    if(days<=30) return `<span class="age-badge age-recent">${days}d old</span>`;
+    if(days<=90) return `<span class="age-badge age-moderate">${Math.round(days/7)}w old</span>`;
+    if(days<=365) return `<span class="age-badge age-stale">${Math.round(days/30)}mo old</span>`;
+    return `<span class="age-badge age-old">${(days/365).toFixed(1)}yr old</span>`;
+  }
   function handleDelivUpload(input, type){
     const file = input.files[0];
     if(!file) return;
+    const asofEl = document.getElementById(type+'-asof');
+    const asofVal = asofEl ? asofEl.value : '';
+    const today = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
     const list = document.getElementById(type+'-list');
     const existing = list.innerHTML;
     list.innerHTML = existing + `
@@ -810,7 +846,11 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
         <div class="ufile-icon">${fileIcon(file.name)}</div>
         <div class="ufile-info">
           <div class="ufile-name">${esc(file.name)}</div>
-          <div class="ufile-meta">${(file.size/1024/1024).toFixed(1)} MB · staged · connects to /api/upload/${type}</div>
+          <div class="ufile-meta">
+            ${(file.size/1024/1024).toFixed(1)} MB
+            · <span class="ufile-datechip">📅 Uploaded ${today}</span>
+            ${asofVal ? `· <span class="ufile-datechip">🗓 Data as of ${fmtDate(asofVal)}</span> ${dataAge(asofVal)}` : ''}
+          </div>
         </div>
         <span class="ufile-status us-pending">STAGED</span>
       </div>`;
@@ -827,7 +867,7 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
   window.switchDelivTab = switchDelivTab;
 
   function clearDelivForm(type){
-    ['version','pages','notes','slides','sheets','sources','period','geo'].forEach(f=>{
+    ['version','pages','notes','slides','sheets','sources','period','geo','asof','coverage','baseyear','presdate','nextupdate'].forEach(f=>{
       const el=document.getElementById(type+'-'+f); if(el) el.value='';
     });
   }
@@ -871,15 +911,22 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
         const rows = data.filter(r=>r.file_type===type||(type==='report'&&r.file_type==='docx')||(type==='model'&&r.file_type==='xlsx')||(type==='deck'&&r.file_type==='pptx')||(type==='data'&&r.file_type==='csv'));
         const list = document.getElementById(type+'-list');
         if(!list||!rows.length) return;
-        list.innerHTML = rows.map(r=>`
-          <div class="ufile">
+        list.innerHTML = rows.map(r=>{
+          const uploadedOn = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+          const asof = r.platform_tabs?.asof || '';
+          const statusKey = r.status==='approved'?'attached':r.status==='submitted'?'review':'pending';
+          return `<div class="ufile">
             <div class="ufile-icon">${fileIcon(r.file_type||'docx')}</div>
             <div class="ufile-info">
               <div class="ufile-name">${esc(r.model_title||'Untitled')}</div>
-              <div class="ufile-meta">${new Date(r.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}</div>
+              <div class="ufile-meta">
+                <span class="ufile-datechip">📅 Uploaded ${uploadedOn}</span>
+                ${asof ? `· <span class="ufile-datechip">🗓 Data as of ${fmtDate(asof)}</span> ${dataAge(asof)}` : ''}
+              </div>
             </div>
-            <span class="ufile-status us-${r.status==='approved'?'attached':r.status==='submitted'?'review':'pending'}">${(r.status||'draft').toUpperCase()}</span>
-          </div>`).join('');
+            <span class="ufile-status us-${statusKey}">${(r.status||'draft').toUpperCase()}</span>
+          </div>`;
+        }).join('');
       });
     }catch(_){}
   }
