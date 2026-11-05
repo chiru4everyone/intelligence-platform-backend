@@ -858,13 +858,29 @@ function buildStatusActions(r){
     published:        [{s:'delivered',label:'✓ Mark Delivered'}],
   };
   const actions = NEXT_STATUSES[r.status]||[];
-  if(!actions.length) return '';
 
   const btns = actions.map(a =>
     `<button class="action-btn" onclick="transitionRequest('${r.id}','${a.s}')">${a.label}</button>`
   ).join('');
 
-  return `<div class="detail-actions"><div class="detail-label" style="margin-bottom:8px">Actions</div>${btns}</div>`;
+  const genBtn = ['approved','in_progress','review'].includes(r.status)
+    ? `<button class="action-btn" onclick="generateTemplates('${r.id}')">📄 Generate Templates</button>`
+    : '';
+
+  const templateLinks = _templateCache[r.id]
+    ? Object.entries(_templateCache[r.id]).map(([k,v]) => {
+        const label = {report:'📋 Report',model:'📊 Model',topline:'📈 Topline CSV',deck:'🎯 Deck'}[k]||k;
+        return v.url ? `<a href="${v.url}" target="_blank" class="action-btn" style="display:block;text-decoration:none;color:var(--teal)">${label} ⬇ Download</a>` : '';
+      }).join('')
+    : `<button class="action-btn" onclick="loadTemplates('${r.id}')" style="color:var(--fog)">🔗 Load template links</button>`;
+
+  if(!btns && !genBtn) return '';
+  return `<div class="detail-actions">
+    <div class="detail-label" style="margin-bottom:8px">Actions</div>
+    ${btns}${genBtn}
+    <div class="detail-label" style="margin-bottom:8px;margin-top:16px">Templates</div>
+    ${templateLinks}
+  </div>`;
 }
 
 function closeDrawer(){
@@ -952,6 +968,48 @@ async function submitNewRequest(){
   }catch(e){
     showToast('Request failed', 3000);
   }
+}
+
+// ── Template generation ───────────────────────────────────────────────────────
+const _templateCache = {};
+
+async function generateTemplates(id){
+  showToast('⏳ Generating templates…', 8000);
+  const { data:{ session } } = await _supa.auth.getSession();
+  const token = session?.access_token||'';
+  try{
+    const res = await fetch(`/api/research-requests/${id}/generate-templates`, {
+      method:'POST', headers:{'Authorization':`Bearer ${token}`}
+    });
+    const json = await res.json();
+    if(res.ok){
+      showToast(`✓ ${json.count} template${json.count!==1?'s':''} generated`);
+      _templateCache[id] = json.urls ? Object.fromEntries(
+        Object.entries(json.urls).map(([k,url])=>[k,{url}])
+      ) : {};
+      // Re-open drawer with updated content
+      closeDrawer();
+      setTimeout(()=>openDrawer(id), 200);
+    } else {
+      showToast(`Error: ${json.detail||res.status}`, 5000);
+    }
+  }catch{ showToast('Template generation failed', 4000); }
+}
+
+async function loadTemplates(id){
+  const { data:{ session } } = await _supa.auth.getSession();
+  const token = session?.access_token||'';
+  try{
+    const res = await fetch(`/api/research-requests/${id}/templates`, {
+      headers:{'Authorization':`Bearer ${token}`}
+    });
+    if(res.ok){
+      const json = await res.json();
+      _templateCache[id] = json.templates||{};
+      closeDrawer();
+      setTimeout(()=>openDrawer(id), 200);
+    }
+  }catch{}
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────

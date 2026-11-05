@@ -1416,6 +1416,20 @@ Top Geography,India,Q4 2026,Maharashtra,text,,neutral</pre>
       return;
     }
 
+    // Fetch template URLs for each request (non-blocking)
+    for(const r of rows){
+      r._templates = {};
+      (async (rr)=>{
+        try{
+          const { data:{ session } } = await window._supa.auth.getSession();
+          const token = session?.access_token||'';
+          const tres = await fetch(`/api/research-requests/${rr.id}/templates`, {
+            headers:{'Authorization':`Bearer ${token}`}
+          });
+          if(tres.ok){ const tj = await tres.json(); rr._templates = tj.templates||{}; }
+        }catch(_){}
+      })(r);
+    }
     listEl.innerHTML = rows.map(r => {
       const geos = Array.isArray(r.scope_geographies) ? r.scope_geographies.join(', ') : (r.scope_geographies||'');
       const badgeClass = `rr-status-${(r.status||'draft').replace(/[^a-z_]/g,'')}`;
@@ -1434,6 +1448,18 @@ Top Geography,India,Q4 2026,Maharashtra,text,,neutral</pre>
       if((role==='head'||role==='master') && r.status==='review'){
         actions += `<button class="rr-approve-btn" onclick="rrTransition('${r.id}','published',event)">✓ Mark Published</button>`;
       }
+      if((role==='head'||role==='master') && ['approved','in_progress','review'].includes(r.status)){
+        actions += `<button class="rr-progress-btn" onclick="generateTemplates('${r.id}',event)">📄 Generate Templates</button>`;
+      }
+
+      // Template download links (if already generated)
+      let templateLinks = '';
+      if(r._templates){
+        const tmap = {report:'📋 Report',model:'📊 Model',topline:'📈 Topline CSV',deck:'🎯 Deck'};
+        for(const [k,v] of Object.entries(r._templates)){
+          if(v.url) templateLinks += `<a href="${v.url}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--acc);text-decoration:none;padding:3px 8px;border:1px solid var(--acc-glow);border-radius:4px;margin:3px 4px 0 0">${tmap[k]||k} ⬇</a>`;
+        }
+      }
 
       return `<div class="rr-card">
         <div class="rr-card-header">
@@ -1449,6 +1475,7 @@ Top Geography,India,Q4 2026,Maharashtra,text,,neutral</pre>
           ${r.contract_value ? `<span class="rr-meta-item" style="color:var(--gold)">₹${Number(r.contract_value).toLocaleString('en-IN')}</span>` : ''}
         </div>
         ${actions ? `<div>${actions}</div>` : ''}
+        ${templateLinks ? `<div style="margin-top:6px">${templateLinks}</div>` : ''}
       </div>`;
     }).join('');
   }
@@ -1519,6 +1546,32 @@ Top Geography,India,Q4 2026,Maharashtra,text,,neutral</pre>
       }
     }catch{ showToast('Request failed', 3000); }
   }
+
+
+  async function generateTemplates(id, evt){
+    if(evt) evt.stopPropagation();
+    showToast('⏳ Generating templates…', 8000);
+    const { data:{ session } } = await window._supa.auth.getSession();
+    const token = session?.access_token||'';
+    try{
+      const res = await fetch(`/api/research-requests/${id}/generate-templates`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if(res.ok){
+        const count = json.count || 0;
+        const errs  = json.errors?.length || 0;
+        showToast(`✓ ${count} template${count!==1?'s':''} generated${errs?` (${errs} error${errs!==1?'s':''})`:''}`);
+        setTimeout(loadResearchRequests, 600);
+      } else {
+        showToast(`Error: ${json.detail||res.status}`, 5000);
+      }
+    }catch{
+      showToast('Template generation failed', 4000);
+    }
+  }
+  window.generateTemplates = generateTemplates;
 
   /* ── Navigation ── */
   const sections = ['dashboard','reports','factsheets','sources','deliverables'];

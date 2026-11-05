@@ -2423,6 +2423,661 @@ async def list_all_research_requests(request: Request):
     }
 
 
+# ── Template Generation ───────────────────────────────────────────────────────
+
+# Vertical-specific topline column schemas
+VERTICAL_TOPLINE_COLS = {
+    "epi":       ["disease", "pathogen", "age_group", "metric", "geography", "period", "value", "unit", "delta", "dir"],
+    "agri":      ["crop", "season", "metric", "geography", "period", "value", "unit", "delta", "dir"],
+    "trade":     ["hs_code", "trade_flow", "metric", "geography", "period", "value", "unit", "delta", "dir"],
+    "markets":   ["asset_class", "instrument", "metric", "geography", "period", "value", "unit", "delta", "dir"],
+    "packaging": ["material", "end_use", "metric", "geography", "period", "value", "unit", "delta", "dir"],
+    "startups":  ["sector", "stage", "metric", "geography", "period", "value", "unit", "delta", "dir"],
+}
+
+VERTICAL_LABEL = {
+    "epi": "Epidemiology", "agri": "Agriculture", "trade": "Trade",
+    "markets": "Markets", "packaging": "Packaging", "startups": "Startups",
+}
+
+VERTICAL_INDICATOR_LABEL = {
+    "epi":       "Disease / Indicator",
+    "agri":      "Crop / Category",
+    "trade":     "Trade Category / HS Code",
+    "markets":   "Market Segment / Asset Class",
+    "packaging": "Material Type",
+    "startups":  "Sector Focus",
+}
+
+VERTICAL_SECTION_HEADINGS = {
+    "epi": ["Executive Summary", "Epidemiological Context", "Surveillance & Methodology",
+            "Country Profiles", "Trend Analysis", "Policy Implications", "Data Sources & References"],
+    "agri": ["Executive Summary", "Agricultural Overview", "Crop & Season Analysis",
+             "Country Profiles", "Supply & Demand Dynamics", "Price & Trade Outlook", "Data Sources & References"],
+    "trade": ["Executive Summary", "Trade Environment", "HS Code Breakdown",
+              "Country Profiles", "Import & Export Flows", "Policy & Tariff Notes", "Data Sources & References"],
+    "markets": ["Executive Summary", "Market Overview", "Asset Class Analysis",
+                "Country Profiles", "Valuation & Pricing", "Macro & Risk Factors", "Data Sources & References"],
+    "packaging": ["Executive Summary", "Industry Overview", "Material Analysis",
+                  "Country Profiles", "Supply Chain Dynamics", "Sustainability Trends", "Data Sources & References"],
+    "startups": ["Executive Summary", "Ecosystem Overview", "Sector & Stage Analysis",
+                 "Country Profiles", "Funding Landscape", "Key Players & Trends", "Data Sources & References"],
+}
+
+
+def _generate_report_docx(rr: dict) -> bytes:
+    """Generate a pre-structured DOCX report template for a research request."""
+    from docx import Document
+    from docx.shared import Pt, RGBColor, Inches
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    import io, datetime
+
+    doc = Document()
+
+    # Page margins
+    for section in doc.sections:
+        section.top_margin    = Inches(1)
+        section.bottom_margin = Inches(1)
+        section.left_margin   = Inches(1.2)
+        section.right_margin  = Inches(1.2)
+
+    # Styles
+    styles = doc.styles
+    normal = styles["Normal"]
+    normal.font.name = "Calibri"
+    normal.font.size = Pt(11)
+
+    def add_heading(text, level=1):
+        p = doc.add_heading(text, level=level)
+        run = p.runs[0] if p.runs else p.add_run(text)
+        run.font.name = "Calibri"
+        if level == 1:
+            run.font.size = Pt(16)
+            run.font.color.rgb = RGBColor(0x2e, 0xc4, 0xb6)
+        elif level == 2:
+            run.font.size = Pt(13)
+            run.font.color.rgb = RGBColor(0x20, 0x20, 0x20)
+        return p
+
+    def add_meta_line(label, value):
+        p = doc.add_paragraph()
+        run_label = p.add_run(f"{label}: ")
+        run_label.bold = True
+        run_label.font.size = Pt(10)
+        run_label.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+        run_value = p.add_run(str(value or ""))
+        run_value.font.size = Pt(10)
+        p.paragraph_format.space_after = Pt(2)
+        return p
+
+    def add_placeholder(text):
+        p = doc.add_paragraph()
+        run = p.add_run(f"[{text}]")
+        run.font.color.rgb = RGBColor(0xAA, 0xAA, 0xAA)
+        run.font.italic = True
+        run.font.size = Pt(10)
+        p.paragraph_format.space_before = Pt(4)
+        return p
+
+    vertical      = rr.get("vertical", "")
+    title         = rr.get("title", "Research Report")
+    indicator     = rr.get("indicator_name", "")
+    geos          = rr.get("scope_geographies", [])
+    geos_str      = ", ".join(geos) if isinstance(geos, list) else str(geos)
+    period        = rr.get("period", "")
+    client        = rr.get("client_name", "")
+    vlabel        = VERTICAL_LABEL.get(vertical, vertical.title())
+    ind_label     = VERTICAL_INDICATOR_LABEL.get(vertical, "Indicator")
+    headings      = VERTICAL_SECTION_HEADINGS.get(vertical, VERTICAL_SECTION_HEADINGS["epi"])
+    today         = datetime.date.today().strftime("%d %B %Y")
+
+    # ── Cover ──
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run(title)
+    run.bold = True
+    run.font.size = Pt(22)
+    run.font.name = "Calibri"
+
+    p2 = doc.add_paragraph()
+    p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run2 = p2.add_run(f"{vlabel} Intelligence Report")
+    run2.font.size = Pt(13)
+    run2.font.color.rgb = RGBColor(0x2e, 0xc4, 0xb6)
+
+    doc.add_paragraph()
+
+    add_meta_line("Prepared for",    client or "[Client Name]")
+    add_meta_line(ind_label,         indicator)
+    add_meta_line("Geography Scope", geos_str or "[Specify geographies]")
+    add_meta_line("Period",          period or "[Specify period]")
+    add_meta_line("Date",            today)
+    add_meta_line("Classification",  "CONFIDENTIAL — FOR CLIENT USE ONLY")
+
+    doc.add_page_break()
+
+    # ── Sections ──
+    for heading in headings:
+        add_heading(heading, level=1)
+
+        if heading == "Country Profiles":
+            if geos:
+                for geo in geos:
+                    add_heading(geo, level=2)
+                    add_placeholder(f"Key indicators for {geo} — populate from model")
+                    add_placeholder("Trend narrative")
+                    add_placeholder("Source references")
+            else:
+                add_heading("[Country Name]", level=2)
+                add_placeholder("Key indicators — populate from model")
+        else:
+            add_placeholder(f"Write {heading.lower()} here — refer to model for data points")
+            add_placeholder("Supporting charts and tables to be inserted")
+
+        doc.add_paragraph()
+
+    # ── Footer note ──
+    doc.add_page_break()
+    p = doc.add_paragraph()
+    run = p.add_run("TEMPLATE NOTICE")
+    run.bold = True
+    run.font.size = Pt(9)
+    run.font.color.rgb = RGBColor(0xAA, 0xAA, 0xAA)
+    p2 = doc.add_paragraph(
+        "This document is a pre-structured template generated from the research request scope. "
+        "All [placeholder] sections must be replaced with researched content before submission. "
+        "Data should be sourced from the linked Excel model."
+    )
+    p2.runs[0].font.size = Pt(9)
+    p2.runs[0].font.color.rgb = RGBColor(0xAA, 0xAA, 0xAA)
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def _generate_model_xlsx(rr: dict) -> bytes:
+    """Generate a pre-structured XLSX model template for a research request."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
+    from openpyxl.utils import get_column_letter
+    import io, datetime
+
+    wb = Workbook()
+
+    vertical  = rr.get("vertical", "")
+    title     = rr.get("title", "Research Model")
+    indicator = rr.get("indicator_name", "")
+    geos      = rr.get("scope_geographies", [])
+    geos_list = geos if isinstance(geos, list) else []
+    period    = rr.get("period", "")
+    vlabel    = VERTICAL_LABEL.get(vertical, vertical.title())
+    tl_cols   = VERTICAL_TOPLINE_COLS.get(vertical, VERTICAL_TOPLINE_COLS["epi"])
+    today     = datetime.date.today().isoformat()
+
+    DARK  = "1A2030"
+    TEAL  = "2EC4B6"
+    GOLD  = "C8A96E"
+    WHITE = "F0F2F7"
+    FOG   = "8A95A8"
+    LIGHT = "F5F7FA"
+    HEADER_FILL = PatternFill("solid", fgColor=DARK)
+    TEAL_FILL   = PatternFill("solid", fgColor=TEAL)
+    GOLD_FILL   = PatternFill("solid", fgColor=GOLD)
+    LIGHT_FILL  = PatternFill("solid", fgColor=LIGHT)
+
+    def header_font(color="FFFFFF", bold=True, size=10):
+        return Font(name="Calibri", bold=bold, color=color, size=size)
+
+    def body_font(color="000000", bold=False, size=10):
+        return Font(name="Calibri", bold=bold, color=color, size=size)
+
+    thin = Side(border_style="thin", color="CCCCCC")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    def set_cell(ws, row, col, value, font=None, fill=None, align=None, num_fmt=None):
+        c = ws.cell(row=row, column=col, value=value)
+        if font:    c.font = font
+        if fill:    c.fill = fill
+        if align:   c.alignment = align
+        if num_fmt: c.number_format = num_fmt
+        c.border = border
+        return c
+
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left   = Alignment(horizontal="left",   vertical="center", wrap_text=True)
+
+    # ── README sheet ──
+    ws_readme = wb.active
+    ws_readme.title = "README"
+    ws_readme.sheet_properties.tabColor = "2EC4B6"
+    ws_readme.column_dimensions["A"].width = 22
+    ws_readme.column_dimensions["B"].width = 50
+
+    meta = [
+        ("Report Title",    title),
+        ("Vertical",        vlabel),
+        ("Indicator",       indicator),
+        ("Period",          period),
+        ("Geographies",     ", ".join(geos_list) if geos_list else ""),
+        ("Generated",       today),
+        ("Status",          "TEMPLATE — Fill in data from approved sources"),
+    ]
+    ws_readme.merge_cells("A1:B1")
+    c = ws_readme.cell(1, 1, "MODEL README")
+    c.font = Font(name="Calibri", bold=True, size=14, color=WHITE)
+    c.fill = HEADER_FILL
+    c.alignment = center
+    ws_readme.row_dimensions[1].height = 30
+
+    for i, (k, v) in enumerate(meta, start=2):
+        set_cell(ws_readme, i, 1, k, font=header_font(color="000000"), fill=LIGHT_FILL, align=left)
+        set_cell(ws_readme, i, 2, v, font=body_font(), align=left)
+
+    # ── Topline sheet ──
+    ws_tl = wb.create_sheet("Topline")
+    ws_tl.sheet_properties.tabColor = "C8A96E"
+    ws_tl.freeze_panes = "A2"
+
+    ws_tl.merge_cells(f"A1:{get_column_letter(len(tl_cols))}1")
+    c = ws_tl.cell(1, 1, f"TOPLINE METRICS — {title.upper()}")
+    c.font = Font(name="Calibri", bold=True, size=12, color=WHITE)
+    c.fill = HEADER_FILL
+    c.alignment = center
+    ws_tl.row_dimensions[1].height = 28
+
+    for ci, col_name in enumerate(tl_cols, start=1):
+        c = ws_tl.cell(2, ci, col_name.upper().replace("_", " "))
+        c.font = Font(name="Calibri", bold=True, size=9, color=WHITE)
+        c.fill = TEAL_FILL
+        c.alignment = center
+        c.border = border
+        ws_tl.column_dimensions[get_column_letter(ci)].width = 16
+
+    # Seed rows — one per geography
+    for gi, geo in enumerate(geos_list, start=3):
+        for ci, col_name in enumerate(tl_cols, start=1):
+            default = ""
+            if col_name == "geography": default = geo
+            elif col_name == "period":  default = period
+            elif col_name in ("disease", "crop", "sector", "material", "asset_class"): default = indicator
+            elif col_name == "dir":     default = "flat"
+            elif col_name == "value":   default = 0
+            c = ws_tl.cell(gi, ci, default)
+            c.font = body_font(color="333333")
+            c.alignment = left
+            c.border = border
+            if col_name == "value":
+                c.number_format = "#,##0.00"
+
+    # ── Country sheets ──
+    for geo in geos_list:
+        ws_geo = wb.create_sheet(geo[:31])  # sheet name max 31 chars
+        ws_geo.sheet_properties.tabColor = "4A7FE8"
+        ws_geo.freeze_panes = "A3"
+
+        ws_geo.merge_cells("A1:F1")
+        c = ws_geo.cell(1, 1, f"{geo} — {indicator}")
+        c.font = Font(name="Calibri", bold=True, size=12, color=WHITE)
+        c.fill = HEADER_FILL
+        c.alignment = center
+        ws_geo.row_dimensions[1].height = 26
+
+        col_headers = ["Metric", "Period", "Value", "Unit", "Source", "Notes"]
+        for ci, h in enumerate(col_headers, start=1):
+            c = ws_geo.cell(2, ci, h.upper())
+            c.font = Font(name="Calibri", bold=True, size=9, color=WHITE)
+            c.fill = TEAL_FILL
+            c.alignment = center
+            c.border = border
+            ws_geo.column_dimensions[get_column_letter(ci)].width = 18
+
+        # 10 blank input rows
+        for ri in range(3, 13):
+            for ci in range(1, 7):
+                c = ws_geo.cell(ri, ci, "")
+                c.border = border
+                c.fill = LIGHT_FILL if ri % 2 == 0 else PatternFill()
+
+    # ── Sources sheet ──
+    ws_src = wb.create_sheet("Sources")
+    ws_src.sheet_properties.tabColor = "9B72E8"
+    ws_src.merge_cells("A1:D1")
+    c = ws_src.cell(1, 1, "DATA SOURCES & REFERENCES")
+    c.font = Font(name="Calibri", bold=True, size=12, color=WHITE)
+    c.fill = HEADER_FILL
+    c.alignment = center
+    ws_src.row_dimensions[1].height = 26
+
+    src_headers = ["Source Name", "URL / Reference", "Data Type", "Date Accessed"]
+    for ci, h in enumerate(src_headers, start=1):
+        c = ws_src.cell(2, ci, h.upper())
+        c.font = Font(name="Calibri", bold=True, size=9, color=WHITE)
+        c.fill = TEAL_FILL
+        c.alignment = center
+        c.border = border
+        ws_src.column_dimensions[get_column_letter(ci)].width = 28
+
+    for ri in range(3, 13):
+        for ci in range(1, 5):
+            c = ws_src.cell(ri, ci, "")
+            c.border = border
+            c.fill = LIGHT_FILL if ri % 2 == 0 else PatternFill()
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def _generate_topline_csv(rr: dict) -> bytes:
+    """Generate topline CSV template with correct column headers for the vertical."""
+    import csv, io
+
+    vertical = rr.get("vertical", "epi")
+    geos     = rr.get("scope_geographies", [])
+    geos_list = geos if isinstance(geos, list) else []
+    period   = rr.get("period", "")
+    indicator = rr.get("indicator_name", "")
+    tl_cols  = VERTICAL_TOPLINE_COLS.get(vertical, VERTICAL_TOPLINE_COLS["epi"])
+
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=tl_cols)
+    writer.writeheader()
+
+    # Seed one row per geography
+    for geo in geos_list:
+        row = {c: "" for c in tl_cols}
+        row["geography"] = geo
+        row["period"]    = period
+        row["dir"]       = "flat"
+        row["value"]     = "0"
+        # Set vertical-specific indicator field
+        for field in ("disease", "crop", "sector", "material", "asset_class", "hs_code"):
+            if field in row:
+                row[field] = indicator
+                break
+        writer.writerow(row)
+
+    return buf.getvalue().encode("utf-8")
+
+
+def _generate_deck_pptx(rr: dict) -> bytes:
+    """Generate a client deck PPTX template for a research request."""
+    from pptx import Presentation
+    from pptx.util import Inches, Pt, Emu
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    import io
+
+    prs = Presentation()
+    prs.slide_width  = Inches(13.33)
+    prs.slide_height = Inches(7.5)
+
+    vertical  = rr.get("vertical", "")
+    title     = rr.get("title", "Research Overview")
+    indicator = rr.get("indicator_name", "")
+    geos      = rr.get("scope_geographies", [])
+    geos_list = geos if isinstance(geos, list) else []
+    period    = rr.get("period", "")
+    client    = rr.get("client_name", "")
+    vlabel    = VERTICAL_LABEL.get(vertical, vertical.title())
+
+    C_DARK  = RGBColor(0x0D, 0x10, 0x17)
+    C_TEAL  = RGBColor(0x2E, 0xC4, 0xB6)
+    C_GOLD  = RGBColor(0xC8, 0xA9, 0x6E)
+    C_WHITE = RGBColor(0xF0, 0xF2, 0xF7)
+    C_FOG   = RGBColor(0x8A, 0x95, 0xA8)
+
+    blank_layout = prs.slide_layouts[6]  # completely blank
+
+    def add_rect(slide, l, t, w, h, color):
+        from pptx.util import Emu
+        shape = slide.shapes.add_shape(1, Inches(l), Inches(t), Inches(w), Inches(h))
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = color
+        shape.line.fill.background()
+        return shape
+
+    def add_text(slide, text, l, t, w, h, size=24, bold=False, color=None, align=PP_ALIGN.LEFT, italic=False):
+        txb = slide.shapes.add_textbox(Inches(l), Inches(t), Inches(w), Inches(h))
+        tf  = txb.text_frame
+        tf.word_wrap = True
+        p   = tf.paragraphs[0]
+        p.alignment = align
+        run = p.add_run()
+        run.text = text
+        run.font.size = Pt(size)
+        run.font.bold = bold
+        run.font.italic = italic
+        if color:
+            run.font.color.rgb = color
+        return txb
+
+    # ── Slide 1: Cover ──
+    s1 = prs.slides.add_slide(blank_layout)
+    add_rect(s1, 0, 0, 13.33, 7.5, C_DARK)
+    add_rect(s1, 0, 0, 0.3,   7.5, C_TEAL)   # accent bar
+    add_text(s1, vlabel.upper(), 0.6, 0.6, 10, 0.4, size=9, color=C_TEAL, bold=True)
+    add_text(s1, title,          0.6, 1.2, 11, 2.2, size=32, bold=True, color=C_WHITE)
+    add_text(s1, indicator,      0.6, 3.5, 10, 0.5, size=14, color=C_GOLD)
+    if period:
+        add_text(s1, period,     0.6, 4.1, 6,  0.4, size=12, color=C_FOG)
+    if client:
+        add_text(s1, f"Prepared for {client}", 0.6, 6.5, 10, 0.5, size=11, color=C_FOG)
+    add_text(s1, "CONFIDENTIAL", 10, 6.8, 3, 0.4, size=9, color=C_FOG, align=PP_ALIGN.RIGHT)
+
+    # ── Slide 2: Scope ──
+    s2 = prs.slides.add_slide(blank_layout)
+    add_rect(s2, 0, 0, 13.33, 7.5, C_DARK)
+    add_rect(s2, 0, 0, 13.33, 0.08, C_TEAL)
+    add_text(s2, "RESEARCH SCOPE", 0.6, 0.3, 12, 0.4, size=9, color=C_TEAL, bold=True)
+    add_text(s2, "What we studied and how", 0.6, 0.7, 10, 0.7, size=22, bold=True, color=C_WHITE)
+    add_text(s2, f"Indicator:   {indicator}", 0.6, 1.8, 10, 0.4, size=12, color=C_FOG)
+    add_text(s2, f"Period:       {period or '[Period]'}", 0.6, 2.3, 10, 0.4, size=12, color=C_FOG)
+    geos_display = " · ".join(geos_list) if geos_list else "[Geographies]"
+    add_text(s2, f"Geographies: {geos_display}", 0.6, 2.8, 12, 0.5, size=12, color=C_FOG)
+    add_text(s2, "Methodology", 0.6, 3.6, 10, 0.4, size=13, bold=True, color=C_WHITE)
+    add_text(s2, "[Describe data sources, collection method, and analytical framework here]",
+             0.6, 4.1, 11, 1.2, size=11, color=C_FOG, italic=True)
+
+    # ── Slide 3: Key Findings ──
+    s3 = prs.slides.add_slide(blank_layout)
+    add_rect(s3, 0, 0, 13.33, 7.5, C_DARK)
+    add_rect(s3, 0, 0, 13.33, 0.08, C_GOLD)
+    add_text(s3, "KEY FINDINGS", 0.6, 0.3, 12, 0.4, size=9, color=C_GOLD, bold=True)
+    add_text(s3, "Topline numbers at a glance", 0.6, 0.7, 10, 0.7, size=22, bold=True, color=C_WHITE)
+
+    # 3 KPI boxes
+    kpi_labels = ["[Metric 1]", "[Metric 2]", "[Metric 3]"]
+    for ki, label in enumerate(kpi_labels):
+        x = 0.6 + ki * 4.2
+        add_rect(s3, x, 1.7, 3.8, 1.8, RGBColor(0x17, 0x1C, 0x28))
+        add_text(s3, "[VALUE]", x + 0.2, 1.9, 3.4, 0.7, size=28, bold=True, color=C_TEAL, align=PP_ALIGN.CENTER)
+        add_text(s3, label,     x + 0.2, 2.6, 3.4, 0.5, size=11, color=C_FOG, align=PP_ALIGN.CENTER)
+
+    add_text(s3, "Summary narrative — 3–4 sentences covering the most important findings across all geographies. "
+                 "Draw from the topline sheet of the model.",
+             0.6, 3.8, 12, 1.4, size=11, color=C_FOG, italic=True)
+
+    # ── Slides 4+: One per geography ──
+    for geo in geos_list:
+        sg = prs.slides.add_slide(blank_layout)
+        add_rect(sg, 0, 0, 13.33, 7.5, C_DARK)
+        add_rect(sg, 0, 0, 0.3, 7.5, C_TEAL)
+        add_text(sg, vlabel.upper(), 0.6, 0.3, 10, 0.4, size=9, color=C_TEAL, bold=True)
+        add_text(sg, geo, 0.6, 0.7, 10, 0.8, size=26, bold=True, color=C_WHITE)
+        add_text(sg, f"{indicator} · {period}", 0.6, 1.5, 10, 0.4, size=11, color=C_FOG)
+
+        # 2 KPI boxes
+        for ki in range(2):
+            x = 0.6 + ki * 5.5
+            add_rect(sg, x, 2.1, 5.0, 1.5, RGBColor(0x17, 0x1C, 0x28))
+            add_text(sg, "[VALUE]",  x+0.2, 2.2, 4.6, 0.6, size=24, bold=True, color=C_TEAL, align=PP_ALIGN.CENTER)
+            add_text(sg, "[Metric]", x+0.2, 2.8, 4.6, 0.4, size=10, color=C_FOG, align=PP_ALIGN.CENTER)
+
+        add_text(sg, "Analysis",          0.6, 3.9, 11.7, 0.4, size=12, bold=True, color=C_WHITE)
+        add_text(sg, f"[Write 3–4 sentences on {geo}'s {indicator} trends, citing model data]",
+                 0.6, 4.4, 11.7, 1.4, size=11, color=C_FOG, italic=True)
+
+    # ── Final slide: Sources ──
+    sf = prs.slides.add_slide(blank_layout)
+    add_rect(sf, 0, 0, 13.33, 7.5, C_DARK)
+    add_rect(sf, 0, 0, 13.33, 0.08, C_TEAL)
+    add_text(sf, "SOURCES & METHODOLOGY", 0.6, 0.3, 12, 0.4, size=9, color=C_TEAL, bold=True)
+    add_text(sf, "Data references", 0.6, 0.7, 10, 0.7, size=22, bold=True, color=C_WHITE)
+    add_text(sf, "[List primary data sources, databases, official publications and URLs referenced in this report]",
+             0.6, 1.8, 11.7, 3.5, size=11, color=C_FOG, italic=True)
+    add_text(sf, "CONFIDENTIAL — FOR CLIENT USE ONLY", 0.6, 6.7, 12, 0.4, size=9, color=C_FOG, align=PP_ALIGN.CENTER)
+
+    buf = io.BytesIO()
+    prs.save(buf)
+    return buf.getvalue()
+
+
+@app.post("/api/research-requests/{rr_id}/generate-templates", tags=["research-requests"])
+async def generate_templates(rr_id: str, request: Request):
+    """
+    Generate all 4 template files for an approved research request and store
+    them in Supabase Storage under templates/{rr_id}/.
+    Returns signed URLs for each file.
+    head or master role required.
+    """
+    profile = _resolve_profile(request)
+    if profile["role"] not in ("head", "master"):
+        raise HTTPException(status_code=403, detail="head or master role required")
+
+    supa = _get_supa_service()
+
+    # Fetch research request
+    try:
+        rr_resp = supa.table("research_requests").select("*").eq("id", rr_id).single().execute()
+    except Exception:
+        raise HTTPException(status_code=404, detail="Research request not found")
+    rr = rr_resp.data
+    if not rr:
+        raise HTTPException(status_code=404, detail="Research request not found")
+
+    # Vertical access check
+    if profile["role"] != "master" and rr["vertical"] != profile.get("vertical"):
+        raise HTTPException(status_code=403, detail="Access denied for this vertical")
+
+    if rr["status"] not in ("approved", "in_progress", "review"):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Templates can only be generated for approved/in-progress requests (current: {rr['status']})"
+        )
+
+    # Generate files
+    import tempfile, os as _os
+    errors = []
+    urls   = {}
+
+    files_to_generate = [
+        ("report",   f"report_{rr_id[:8]}.docx",   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",   _generate_report_docx),
+        ("model",    f"model_{rr_id[:8]}.xlsx",     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",          _generate_model_xlsx),
+        ("topline",  f"topline_{rr_id[:8]}.csv",    "text/csv",                                                                   _generate_topline_csv),
+        ("deck",     f"deck_{rr_id[:8]}.pptx",      "application/vnd.openxmlformats-officedocument.presentationml.presentation",  _generate_deck_pptx),
+    ]
+
+    generated_paths = {}
+    for file_key, filename, content_type, generator in files_to_generate:
+        try:
+            file_bytes = generator(rr)
+            storage_path = f"templates/{rr_id}/{filename}"
+
+            # Upload to Supabase Storage (templates bucket)
+            supa.storage.from_("templates").upload(
+                path=storage_path,
+                file=file_bytes,
+                file_options={"content-type": content_type, "upsert": "true"},
+            )
+            generated_paths[file_key] = storage_path
+        except Exception as exc:
+            errors.append(f"{file_key}: {exc}")
+
+    # Store generated paths on the research request
+    if generated_paths:
+        update_payload = {
+            "template_report_path":  generated_paths.get("report"),
+            "template_model_path":   generated_paths.get("model"),
+            "template_topline_path": generated_paths.get("topline"),
+            "template_deck_path":    generated_paths.get("deck"),
+            "updated_at":            datetime.datetime.utcnow().isoformat(),
+        }
+        # Only update fields that exist in the table (add columns via migration)
+        try:
+            supa.table("research_requests").update(update_payload).eq("id", rr_id).execute()
+        except Exception:
+            pass  # column may not exist yet — migration adds them
+
+    # Generate signed URLs (1 week)
+    for file_key, storage_path in generated_paths.items():
+        try:
+            signed = supa.storage.from_("templates").create_signed_url(storage_path, 604800)
+            urls[file_key] = signed.get("signedURL") or signed.get("signedUrl") or ""
+        except Exception as exc:
+            urls[file_key] = ""
+            errors.append(f"{file_key} signed URL: {exc}")
+
+    _log_activity(supa,
+        table_name="research_requests",
+        record_id=rr_id,
+        actor=profile,
+        action="generate_templates",
+        new_value=str(list(generated_paths.keys())),
+        note=f"Templates generated for: {rr.get('title','')}",
+        vertical=rr["vertical"],
+    )
+
+    return {
+        "rr_id":   rr_id,
+        "urls":    urls,
+        "paths":   generated_paths,
+        "errors":  errors,
+        "count":   len(generated_paths),
+    }
+
+
+@app.get("/api/research-requests/{rr_id}/templates", tags=["research-requests"])
+async def get_template_urls(rr_id: str, request: Request):
+    """Get signed download URLs for existing templates of a research request."""
+    profile = _resolve_profile(request)
+
+    supa = _get_supa_service()
+    try:
+        rr_resp = supa.table("research_requests").select("*").eq("id", rr_id).single().execute()
+    except Exception:
+        raise HTTPException(status_code=404, detail="Research request not found")
+    rr = rr_resp.data
+    if not rr:
+        raise HTTPException(status_code=404, detail="Research request not found")
+
+    if profile["role"] != "master" and rr["vertical"] != profile.get("vertical"):
+        raise HTTPException(status_code=403, detail="Access denied for this vertical")
+
+    # Try to list files in this request's template folder
+    try:
+        files = supa.storage.from_("templates").list(f"templates/{rr_id}")
+    except Exception:
+        files = []
+
+    urls = {}
+    for f in (files or []):
+        name = f.get("name", "")
+        storage_path = f"templates/{rr_id}/{name}"
+        file_key = name.split("_")[0]  # "report", "model", "topline", "deck"
+        try:
+            signed = supa.storage.from_("templates").create_signed_url(storage_path, 604800)
+            urls[file_key] = {
+                "url":      signed.get("signedURL") or signed.get("signedUrl") or "",
+                "filename": name,
+            }
+        except Exception:
+            pass
+
+    return {"rr_id": rr_id, "templates": urls, "count": len(urls)}
+
+
 # ── /workflow — Gantt dashboard page ─────────────────────────────────────────
 @app.get("/workflow", response_class=HTMLResponse, include_in_schema=False)
 async def workflow_page():
