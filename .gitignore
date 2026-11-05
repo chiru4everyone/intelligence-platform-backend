@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment — NEVER commit secrets
+.env
+
+# Data — uploads and SQLite DB are runtime files, not source
+data/uploads/
+data/store/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
