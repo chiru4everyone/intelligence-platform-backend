@@ -430,7 +430,7 @@ async def _resolve_profile(request: Request):
     try:
         profile_resp = (
             supa.table("profiles")
-            .select("role, vertical, full_name, email")
+            .select("id, role, vertical, full_name, email")
             .eq("id", uid)
             .single()
             .execute()
@@ -1791,6 +1791,18 @@ async def upload_deliverable(
         # Storage file is already uploaded — log but don't fail silently
         raise HTTPException(status_code=500, detail=f"Database insert failed: {exc}")
 
+    # Activity log
+    _log_activity(supa,
+        table_name="model_uploads",
+        record_id=file_id,
+        actor=profile,
+        action="upload",
+        field_name="file_type",
+        new_value=deliverable_type,
+        note=f"Uploaded {filename} ({deliverable_type}) for {vertical}",
+        vertical=vertical,
+    )
+
     return {
         "id":           file_id,
         "storage_path": storage_path,
@@ -1955,6 +1967,19 @@ async def update_deliverable_status(request: Request, deliverable_id: str):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Update failed: {exc}")
 
+    # Activity log
+    _log_activity(supa,
+        table_name="model_uploads",
+        record_id=deliverable_id,
+        actor=profile,
+        action="status_change",
+        field_name="status",
+        old_value=current_status,
+        new_value=new_status,
+        note=note or None,
+        vertical=row.get("vertical"),
+    )
+
     return {
         "id":         deliverable_id,
         "status":     new_status,
@@ -1963,6 +1988,203 @@ async def update_deliverable_status(request: Request, deliverable_id: str):
         "updated_by": profile.get("email", ""),
         "role":       role,
     }
+
+
+# ── /api/ingest/{deliverable_id} ──────────────────────────────────────────────
+# Parses an uploaded data file (CSV / JSON) from Supabase Storage and
+# upserts structured rows into the topline_data table.
+# Called automatically after a data file upload, or manually by senior/head.
+
+@app.post("/api/ingest/{deliverable_id}", tags=["deliverables"])
+async def ingest_topline(request: Request, deliverable_id: str):
+    """
+    Download a data deliverable from Storage, parse CSV/JSON rows,
+    upsert into topline_data. Requires senior or head role.
+    """
+    profile = await _resolve_profile(request)
+    if profile.get("role") not in ("senior", "head"):
+        raise HTTPException(status_code=403, detail="Ingest requires senior or head role")
+
+    supa = _get_supa_service() or _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    # Fetch the deliverable row
+    try:
+        row_resp = (
+            supa.table("model_uploads")
+            .select("id, file_type, vertical, storage_path, platform_tabs, report_id, status")
+            .eq("id", deliverable_id)
+            .single()
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Fetch failed: {exc}")
+
+    if not row_resp.data:
+        raise HTTPException(status_code=404, detail="Deliverable not found")
+
+    row = row_resp.data
+    if row.get("file_type") not in ("data", "csv", "json"):
+        raise HTTPException(status_code=400, detail="Only data deliverables (CSV/JSON) can be ingested")
+
+    storage_path = row.get("storage_path", "")
+    if not storage_path:
+        raise HTTPException(status_code=400, detail="No storage_path on this deliverable")
+
+    # Vertical access check
+    profile_vertical = profile.get("vertical", "")
+    if profile_vertical != "all" and profile_vertical != row.get("vertical", ""):
+        raise HTTPException(status_code=403, detail="Access denied for this vertical")
+
+    # Download file bytes from Supabase Storage
+    try:
+        file_bytes = supa.storage.from_("deliverables").download(storage_path)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Storage download failed: {exc}")
+
+    # Parse CSV or JSON
+    import io
+    import csv as csv_mod
+    import json as json_mod
+
+    rows_parsed = []
+    ext = storage_path.rsplit(".", 1)[-1].lower() if "." in storage_path else ""
+    asof_str = (row.get("platform_tabs") or {}).get("asof", "")
+
+    try:
+        if ext == "json":
+            payload = json_mod.loads(file_bytes)
+            if isinstance(payload, list):
+                data_rows = payload
+            elif isinstance(payload, dict) and "rows" in payload:
+                data_rows = payload["rows"]
+            elif isinstance(payload, dict) and "data" in payload:
+                data_rows = payload["data"]
+            else:
+                data_rows = [payload]
+            for dr in data_rows:
+                if not isinstance(dr, dict):
+                    continue
+                rows_parsed.append({
+                    "vertical":   row["vertical"],
+                    "upload_id":  deliverable_id,
+                    "report_id":  row.get("report_id"),
+                    "metric":     str(dr.get("metric", dr.get("name", "Unknown"))),
+                    "geography":  str(dr.get("geography", dr.get("geo", "")) or ""),
+                    "period":     str(dr.get("period", "") or ""),
+                    "value":      _safe_float(dr.get("value")),
+                    "unit":       str(dr.get("unit", "") or ""),
+                    "delta":      str(dr.get("delta", "") or ""),
+                    "dir":        _clean_dir(dr.get("dir", "")),
+                    "asof":       asof_str or None,
+                })
+        else:
+            # CSV — expected columns: metric, geography, period, value, unit, delta, dir
+            text = file_bytes.decode("utf-8", errors="replace")
+            reader = csv_mod.DictReader(io.StringIO(text))
+            for dr in reader:
+                rows_parsed.append({
+                    "vertical":   row["vertical"],
+                    "upload_id":  deliverable_id,
+                    "report_id":  row.get("report_id"),
+                    "metric":     str(dr.get("metric", dr.get("name", "Unknown"))),
+                    "geography":  str(dr.get("geography", dr.get("geo", "")) or ""),
+                    "period":     str(dr.get("period", "") or ""),
+                    "value":      _safe_float(dr.get("value")),
+                    "unit":       str(dr.get("unit", "") or ""),
+                    "delta":      str(dr.get("delta", "") or ""),
+                    "dir":        _clean_dir(dr.get("dir", "")),
+                    "asof":       asof_str or None,
+                })
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Parse failed: {exc}")
+
+    if not rows_parsed:
+        raise HTTPException(status_code=422, detail="No data rows found in file")
+
+    # Limit to 500 rows per upload
+    rows_parsed = rows_parsed[:500]
+
+    # Delete old rows for this upload_id, then insert fresh
+    try:
+        supa.table("topline_data").delete().eq("upload_id", deliverable_id).execute()
+        supa.table("topline_data").insert(rows_parsed).execute()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Database write failed: {exc}")
+
+    # Activity log
+    _log_activity(supa,
+        table_name="topline_data",
+        record_id=deliverable_id,
+        actor=profile,
+        action="ingest",
+        field_name="rows_ingested",
+        new_value=str(len(rows_parsed)),
+        note=f"Ingested {len(rows_parsed)} topline rows from {storage_path.split('/')[-1]}",
+        vertical=row["vertical"],
+    )
+
+    return {
+        "deliverable_id": deliverable_id,
+        "rows_ingested":  len(rows_parsed),
+        "vertical":       row["vertical"],
+        "asof":           asof_str or None,
+    }
+
+
+def _safe_float(v) -> Optional[float]:
+    """Convert value to float, return None if not parseable."""
+    if v is None or v == "":
+        return None
+    try:
+        return float(str(v).replace(",", "").strip())
+    except (ValueError, TypeError):
+        return None
+
+
+def _clean_dir(v) -> str:
+    """Normalise direction field to 'up'|'down'|'flat'|''."""
+    s = str(v or "").strip().lower()
+    if s in ("up", "↑", "+", "increase", "rise"):
+        return "up"
+    if s in ("down", "↓", "-", "decrease", "fall"):
+        return "down"
+    if s in ("flat", "→", "0", "stable", "neutral"):
+        return "flat"
+    return ""
+
+
+# ── /api/topline/{vertical} ───────────────────────────────────────────────────
+@app.get("/api/topline/{vertical}", tags=["deliverables"])
+async def get_topline(request: Request, vertical: str, limit: int = 50):
+    """Return the latest ingested topline rows for a vertical."""
+    profile = await _resolve_profile(request)
+
+    if vertical not in VALID_VERTICALS:
+        raise HTTPException(status_code=400, detail=f"Invalid vertical: {vertical}")
+
+    profile_vertical = profile.get("vertical", "")
+    if profile_vertical != "all" and profile_vertical != vertical:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        resp = (
+            supa.table("topline_data")
+            .select("id, metric, geography, period, value, unit, delta, dir, asof, created_at, upload_id")
+            .eq("vertical", vertical)
+            .order("created_at", desc=True)
+            .limit(min(limit, 500))
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Query failed: {exc}")
+
+    return {"vertical": vertical, "rows": resp.data or [], "count": len(resp.data or [])}
 
 
 # ── /workflow — Gantt dashboard page ─────────────────────────────────────────

@@ -67,7 +67,7 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
 .content{padding:24px 28px;display:flex;flex-direction:column;gap:22px;flex:1}
 
 /* ── KPI cards ── */
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
 .kpi{padding:18px 20px;background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);position:relative;overflow:hidden}
 .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--acc);opacity:.6}
 .kpi-val{font-size:26px;font-weight:600;color:var(--white);margin-bottom:4px;font-family:var(--ff-mono)}
@@ -139,6 +139,15 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
 .source-meta{font-size:11px;color:var(--fog);font-family:var(--ff-mono)}
 
 /* ── Deliverable upload hub ── */
+.deliv-card{padding:16px;background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);display:flex;flex-direction:column;gap:8px;transition:border-color .15s}
+.deliv-card:hover{border-color:var(--acc-glow)}
+.deliv-card-icon{font-size:22px;line-height:1}
+.deliv-card-title{font-size:12.5px;font-weight:600;color:var(--white);line-height:1.3;word-break:break-word}
+.deliv-card-meta{font-family:var(--ff-mono);font-size:9.5px;color:var(--fog);display:flex;flex-direction:column;gap:3px}
+.deliv-card-footer{margin-top:auto;display:flex;align-items:center;justify-content:space-between}
+.deliv-card-type{font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:2px 7px;border-radius:10px;background:var(--acc-dim);color:var(--acc);border:1px solid var(--acc-glow)}
+.deliv-card-dl{font-size:12px;color:var(--fog);text-decoration:none;padding:3px 7px;border:1px solid var(--rule2);border-radius:5px;transition:border-color .15s,color .15s}
+.deliv-card-dl:hover{border-color:var(--acc-glow);color:var(--acc)}
 .deliv-tabs{display:flex;gap:0;border-bottom:1px solid var(--rule)}
 .dtab{display:flex;align-items:center;gap:7px;padding:11px 18px;font-size:12px;color:var(--fog);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--ff-body);white-space:nowrap}
 .dtab:hover{color:var(--white)}
@@ -286,6 +295,31 @@ input[type="date"].mf-input{color-scheme:dark}
         <div class="section" style="margin-top:0">
           <div class="section-head"><div class="section-title">Recent Activity</div></div>
           <div id="dashActivity" style="padding:12px 0"><div class="empty">Loading…</div></div>
+        </div>
+
+        <!-- Published deliverables panel -->
+        <div class="section" style="margin-top:0" id="publishedDelivSection">
+          <div class="section-head">
+            <div class="section-title">Published Deliverables</div>
+            <div class="section-actions" style="font-family:var(--ff-mono);font-size:10px;color:var(--fog)" id="publishedDelivCount"></div>
+          </div>
+          <div id="publishedDelivGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:4px 0 8px">
+            <div class="empty">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Topline metrics table -->
+        <div class="section" style="margin-top:0" id="toplineSection">
+          <div class="section-head">
+            <div class="section-title">Topline Metrics</div>
+            <div class="section-actions" style="font-family:var(--ff-mono);font-size:10px;color:var(--fog)" id="toplineCount"></div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="report-table" id="toplineTable">
+              <thead><tr><th>Metric</th><th>Geography</th><th>Period</th><th>Value</th><th>Unit</th><th>Change</th><th>As of</th></tr></thead>
+              <tbody id="toplineBody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -620,6 +654,8 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
   async function loadAll(){
     await Promise.all([loadKPIs(), loadReports(), loadFactsheets(), loadSources(), loadActivity()]);
     loadDeliverablesList();
+    loadPublishedDeliverables();
+    loadTopline();
   }
 
   /* ── KPIs ── */
@@ -628,11 +664,22 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
       const { data: reports } = await supabase.from('reports').select('stage').eq('vertical', VERTICAL);
       const { data: sources } = await supabase.from('data_sources').select('id').eq('vertical', VERTICAL);
       const r = reports || [];
+      // Also fetch topline row count
+      let toplineCount = 0;
+      try{
+        const { count } = await supabase
+          .from('topline_data')
+          .select('id', {count:'exact', head:true})
+          .eq('vertical', VERTICAL);
+        toplineCount = count || 0;
+      } catch(_){}
+
       document.getElementById('kpiRow').innerHTML = `
         <div class="kpi"><div class="kpi-val">${r.length}</div><div class="kpi-label">Total Reports</div></div>
         <div class="kpi"><div class="kpi-val">${r.filter(x=>x.stage==='published').length}</div><div class="kpi-label">Published</div></div>
         <div class="kpi"><div class="kpi-val">${r.filter(x=>['submitted','senior_review','senior_approved','head_review'].includes(x.stage)).length}</div><div class="kpi-label">In Review</div></div>
-        <div class="kpi"><div class="kpi-val">${(sources||[]).length}</div><div class="kpi-label">Data Sources</div></div>`;
+        <div class="kpi"><div class="kpi-val">${(sources||[]).length}</div><div class="kpi-label">Data Sources</div></div>
+        <div class="kpi"><div class="kpi-val">${toplineCount}</div><div class="kpi-label">Topline Metrics</div></div>`;
     } catch(e){ console.error(e); }
   }
 
@@ -951,11 +998,24 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
         body: fd,
       });
       if(res.ok){
-        const json = await res.json();
+        const uploadJson = await res.json();
         stagedBadge.textContent = 'IN REVIEW';
         delete window._stagedFiles[type];
+        // Auto-ingest topline data files immediately after upload
+        if(type === 'data' && uploadJson.id){
+          try{
+            const ingestRes = await fetch(`/api/ingest/${uploadJson.id}`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if(ingestRes.ok){
+              const ingestJson = await ingestRes.json();
+              showToast(`✓ ${ingestJson.rows_ingested} topline rows ingested`);
+            }
+          } catch(_){}
+        }
         // Refresh the list from Supabase after a short delay
-        setTimeout(()=>loadDeliverablesList(), 1200);
+        setTimeout(()=>{ loadDeliverablesList(); loadPublishedDeliverables(); if(type==='data') loadKPIs(); }, 1200);
       } else {
         const err = await res.json().catch(()=>({detail:'Upload failed'}));
         stagedBadge.className = 'ufile-status us-pending';
@@ -1089,6 +1149,137 @@ Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
     });
   }
   window.loadDeliverablesList = loadDeliverablesList;
+
+
+  async function loadPublishedDeliverables(){
+    const grid = document.getElementById('publishedDelivGrid');
+    const countEl = document.getElementById('publishedDelivCount');
+    if(!grid) return;
+
+    let rows = [];
+    // Try backend API first (has signed_url)
+    try{
+      const { data: { session } } = await window._supa.auth.getSession();
+      const token = session?.access_token || '';
+      if(token){
+        const res = await fetch(`/api/deliverables/${VERTICAL}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if(res.ok){
+          const json = await res.json();
+          rows = (json.deliverables || []).filter(r => r.status === 'published');
+        }
+      }
+    } catch(_){}
+
+    // Fallback: Supabase JS direct query
+    if(!rows.length && window._supa){
+      try{
+        const { data } = await window._supa
+          .from('model_uploads')
+          .select('id,file_type,model_title,status,created_at,platform_tabs,storage_path')
+          .eq('vertical', VERTICAL)
+          .eq('status', 'published')
+          .order('created_at', {ascending: false})
+          .limit(20);
+        rows = data || [];
+      } catch(_){}
+    }
+
+    if(countEl) countEl.textContent = rows.length ? `${rows.length} published` : '';
+
+    if(!rows.length){
+      grid.innerHTML = '<div class="empty" style="padding:20px 0;grid-column:1/-1">No published deliverables yet.</div>';
+      return;
+    }
+
+    const TYPE_ICON = {report:'📄', model:'📊', deck:'🎯', data:'🗃️'};
+    const TYPE_LABEL = {report:'Report', model:'Model', deck:'Deck', data:'Data'};
+
+    grid.innerHTML = rows.map(r => {
+      const icon  = TYPE_ICON[r.file_type] || '📎';
+      const label = TYPE_LABEL[r.file_type] || r.file_type;
+      const asof  = (r.platform_tabs?.asof) || '';
+      const publishedOn = r.created_at
+        ? new Date(r.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
+        : '—';
+      const dlBtn = r.signed_url
+        ? `<a href="${r.signed_url}" target="_blank" class="deliv-card-dl" title="Download">⬇ Download</a>`
+        : '';
+      return `<div class="deliv-card">
+        <div class="deliv-card-icon">${icon}</div>
+        <div class="deliv-card-title">${esc(r.model_title || 'Untitled')}</div>
+        <div class="deliv-card-meta">
+          <span>📅 Published ${publishedOn}</span>
+          ${asof ? `<span>🗓 Data as of ${fmtDate(asof)} ${dataAge(asof)}</span>` : ''}
+        </div>
+        <div class="deliv-card-footer">
+          <span class="deliv-card-type">${label}</span>
+          ${dlBtn}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  window.loadPublishedDeliverables = loadPublishedDeliverables;
+
+
+  async function loadTopline(){
+    const tbody  = document.getElementById('toplineBody');
+    const countEl = document.getElementById('toplineCount');
+    if(!tbody) return;
+    let rows = [];
+    try{
+      const { data: { session } } = await window._supa.auth.getSession();
+      const token = session?.access_token || '';
+      if(token){
+        const res = await fetch(`/api/topline/${VERTICAL}?limit=30`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if(res.ok){
+          const json = await res.json();
+          rows = json.rows || [];
+        }
+      }
+    } catch(_){}
+
+    // Fallback: Supabase JS
+    if(!rows.length && window._supa){
+      try{
+        const { data } = await window._supa
+          .from('topline_data')
+          .select('metric,geography,period,value,unit,delta,dir,asof')
+          .eq('vertical', VERTICAL)
+          .order('created_at', {ascending:false})
+          .limit(30);
+        rows = data || [];
+      } catch(_){}
+    }
+
+    if(countEl) countEl.textContent = rows.length ? `${rows.length} rows` : '';
+
+    if(!rows.length){
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No topline data yet — upload a CSV or JSON data file.</td></tr>';
+      return;
+    }
+
+    const DIR_ICON = {up:'↑', down:'↓', flat:'→', '':''};
+    const DIR_COLOR = {up:'color:#4cff91', down:'color:#e85d4a', flat:'color:var(--fog)', '':''};
+    tbody.innerHTML = rows.map(r => {
+      const val   = r.value != null ? Number(r.value).toLocaleString('en-IN') : '—';
+      const delta = r.delta ? `<span style="${DIR_COLOR[r.dir||'']}">${DIR_ICON[r.dir||'']} ${esc(r.delta)}</span>` : '—';
+      const asof  = r.asof ? fmtDate(r.asof) : '—';
+      return `<tr>
+        <td>${esc(r.metric||'')}</td>
+        <td>${esc(r.geography||'')}</td>
+        <td>${esc(r.period||'')}</td>
+        <td style="font-family:var(--ff-mono)">${val}</td>
+        <td style="font-family:var(--ff-mono);color:var(--fog)">${esc(r.unit||'')}</td>
+        <td>${delta}</td>
+        <td style="font-family:var(--ff-mono);font-size:10px;color:var(--fog)">${asof}</td>
+      </tr>`;
+    }).join('');
+  }
+  window.loadTopline = loadTopline;
 
   /* ── Navigation ── */
   const sections = ['dashboard','reports','factsheets','sources','deliverables'];
