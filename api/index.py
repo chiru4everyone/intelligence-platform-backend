@@ -304,7 +304,11 @@ def _load_page(filename: str) -> str:
         return f"<html><body><h1>{filename} not found</h1></body></html>"
 
 _EPI_HTML        = _load_page("epi-intelligence.html")
-# Remaining pages will be added here as they are built
+_AGRI_HTML       = _load_page("agri-intelligence.html")
+_TRADE_HTML      = _load_page("trade-intelligence.html")
+_MARKETS_HTML    = _load_page("markets-intelligence.html")
+_PACKAGING_HTML  = _load_page("packaging-intelligence.html")
+_STARTUPS_HTML   = _load_page("startup-intelligence.html")
 
 # ── FastAPI app (no lifespan — serverless safe) ───────────────────────────────
 app = FastAPI(
@@ -1643,3 +1647,38 @@ def _inject_supa(html: str) -> str:
 async def epi_page():
     """Epidemiology analyst workspace — requires Supabase auth (epi or all vertical)."""
     return HTMLResponse(content=_inject_supa(_EPI_HTML))
+
+
+@app.get("/agri-intelligence", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/agri-intelligence/", response_class=HTMLResponse, include_in_schema=False)
+async def agri_page():
+    """Agriculture analyst workspace — requires Supabase auth (agri or all vertical)."""
+    return HTMLResponse(content=_inject_supa(_AGRI_HTML))
+
+
+@app.get("/trade-intelligence", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/trade-intelligence/", response_class=HTMLResponse, include_in_schema=False)
+async def trade_page():
+    """Trade analyst workspace — requires Supabase auth (trade or all vertical)."""
+    return HTMLResponse(content=_inject_supa(_TRADE_HTML))
+
+
+@app.get("/markets-intelligence", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/markets-intelligence/", response_class=HTMLResponse, include_in_schema=False)
+async def markets_page():
+    """Markets analyst workspace — requires Supabase auth (markets or all vertical)."""
+    return HTMLResponse(content=_inject_supa(_MARKETS_HTML))
+
+
+@app.get("/packaging-intelligence", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/packaging-intelligence/", response_class=HTMLResponse, include_in_schema=False)
+async def packaging_page():
+    """Packaging analyst workspace — requires Supabase auth (packaging or all vertical)."""
+    return HTMLResponse(content=_inject_supa(_PACKAGING_HTML))
+
+
+@app.get("/startup-intelligence", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/startup-intelligence/", response_class=HTMLResponse, include_in_schema=False)
+async def startups_page():
+    """Startups analyst workspace — requires Supabase auth (startups or all vertical)."""
+    return HTMLResponse(content=_inject_supa(_STARTUPS_HTML))
