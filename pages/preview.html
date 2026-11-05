@@ -11,6 +11,8 @@
   --ink:#06080d;--ink2:#0c0f16;--ink3:#11151e;--ink4:#171c28;
   --rule:rgba(255,255,255,.06);--rule2:rgba(255,255,255,.1);
   --white:#eef0f5;--fog:#7a8599;--ghost:#3d4a60;
+  --acc:#2ec4b6;--acc-dim:rgba(46,196,182,.12);--acc-glow:rgba(46,196,182,.2);--acc-soft:rgba(46,196,182,.08);
+  --coral:#e85d4a;--gold:#c8a96e;--violet:#9b72e8;--sapph:#4a7fe8;--agri:#4caf78;
   --ff-serif:'DM Serif Display',Georgia,serif;
   --ff-body:'Inter',system-ui,sans-serif;
   --ff-mono:'JetBrains Mono',monospace;
@@ -18,114 +20,184 @@
   color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var(--white);-webkit-font-smoothing:antialiased}
+html,body{font-family:var(--ff-body);background:var(--ink);color:var(--white);-webkit-font-smoothing:antialiased}
 
-/* ── Top bar ── */
-.topnav{display:flex;align-items:center;justify-content:space-between;padding:14px 32px;background:var(--ink2);border-bottom:1px solid var(--rule2);position:sticky;top:0;z-index:10}
-.logo{font-family:var(--ff-serif);font-size:17px;color:var(--white)}
-.preview-badge{font-family:var(--ff-mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 10px;background:rgba(200,169,110,.12);border:1px solid rgba(200,169,110,.25);border-radius:20px;color:#c8a96e}
-.login-link{padding:7px 16px;background:var(--white);border:none;border-radius:var(--r);font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;font-family:var(--ff-body);text-decoration:none}
-
-/* ── Vertical tabs ── */
-.tab-row{display:flex;gap:0;border-bottom:1px solid var(--rule2);background:var(--ink2);padding:0 32px;overflow-x:auto}
-.tab{display:flex;align-items:center;gap:8px;padding:14px 20px;font-size:12.5px;color:var(--fog);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--ff-body)}
-.tab:hover{color:var(--white)}
-.tab.active{color:var(--white);border-bottom-color:var(--acc)}
-.tab-dot{width:7px;height:7px;border-radius:50%}
+/* ── Top nav ── */
+.topnav{display:flex;align-items:center;justify-content:space-between;padding:13px 28px;background:var(--ink2);border-bottom:1px solid var(--rule2);position:sticky;top:0;z-index:20}
+.logo{font-family:var(--ff-serif);font-size:16px;color:var(--white)}
+.preview-badge{font-family:var(--ff-mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:3px 9px;background:rgba(200,169,110,.12);border:1px solid rgba(200,169,110,.25);border-radius:20px;color:#c8a96e}
+.login-link{padding:7px 16px;background:var(--white);border:none;border-radius:var(--r);font-size:12px;font-weight:600;color:var(--ink);text-decoration:none;cursor:pointer}
 
 /* ── Preview banner ── */
-.preview-banner{background:rgba(200,169,110,.07);border-bottom:1px solid rgba(200,169,110,.15);padding:10px 32px;display:flex;align-items:center;gap:10px;font-size:12px;color:#c8a96e;font-family:var(--ff-mono)}
+.preview-banner{background:rgba(200,169,110,.06);border-bottom:1px solid rgba(200,169,110,.13);padding:9px 28px;display:flex;align-items:center;gap:9px;font-size:11.5px;color:#c8a96e;font-family:var(--ff-mono)}
 
-/* ── Workspace (mirrors the actual domain page layout) ── */
-.workspace{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 112px)}
+/* ── Vertical switcher ── */
+.vert-tabs{display:flex;gap:0;border-bottom:1px solid var(--rule2);background:var(--ink2);padding:0 28px;overflow-x:auto;scrollbar-width:none}
+.vert-tabs::-webkit-scrollbar{display:none}
+.vtab{display:flex;align-items:center;gap:7px;padding:12px 18px;font-size:12px;color:var(--fog);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--ff-body)}
+.vtab:hover{color:var(--white)}
+.vtab.active{color:var(--white);border-bottom-color:var(--acc)}
+.vtab-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* ── Workspace shell ── */
+.workspace{display:grid;grid-template-columns:210px 1fr;min-height:calc(100vh - 115px)}
 
 /* sidebar */
-.sidebar{background:var(--ink2);border-right:1px solid var(--rule2);display:flex;flex-direction:column;padding:0}
-.sidebar-top{padding:20px 18px 16px;border-bottom:1px solid var(--rule)}
-.vertical-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--acc-dim);border:1px solid var(--acc-glow);border-radius:20px;font-family:var(--ff-mono);font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--acc);margin-bottom:10px}
-.vertical-dot{width:5px;height:5px;border-radius:50%;background:var(--acc)}
-.sidebar-title{font-family:var(--ff-serif);font-size:16px;color:var(--white);line-height:1.3;margin-bottom:3px}
-.sidebar-sub{font-size:11px;color:var(--fog)}
-.nav{padding:12px 10px;flex:1}
-.nav-section-label{font-family:var(--ff-mono);font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ghost);padding:8px 8px 4px;display:block}
-.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r);font-size:12.5px;color:var(--fog)}
-.nav-item.active{background:var(--acc-soft);color:var(--acc);font-weight:500}
-.nav-item .icon{font-size:14px;width:18px;text-align:center}
-.sidebar-footer{padding:14px 16px;border-top:1px solid var(--rule)}
-.user-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.user-avatar{width:30px;height:30px;border-radius:50%;background:var(--acc-dim);border:1px solid var(--acc-glow);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--acc)}
-.user-name{font-size:12px;font-weight:500;color:var(--white)}
-.user-role{font-family:var(--ff-mono);font-size:9px;color:var(--fog)}
+.sidebar{background:var(--ink2);border-right:1px solid var(--rule2);display:flex;flex-direction:column;position:sticky;top:88px;height:calc(100vh - 88px);overflow-y:auto}
+.sidebar-top{padding:18px 16px 14px;border-bottom:1px solid var(--rule)}
+.vpill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;background:var(--acc-dim);border:1px solid var(--acc-glow);border-radius:20px;font-family:var(--ff-mono);font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--acc);margin-bottom:9px}
+.vdot{width:5px;height:5px;border-radius:50%;background:var(--acc);flex-shrink:0}
+.sidebar-title{font-family:var(--ff-serif);font-size:15px;color:var(--white);line-height:1.3;margin-bottom:2px}
+.sidebar-sub{font-size:10.5px;color:var(--fog)}
+.nav{padding:10px 8px;flex:1}
+.nav-label{font-family:var(--ff-mono);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ghost);padding:8px 8px 4px;display:block}
+.ni{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r);font-size:12px;color:var(--fog);cursor:pointer;transition:background .12s,color .12s;border:none;background:none;width:100%;text-align:left;font-family:var(--ff-body)}
+.ni:hover{background:rgba(255,255,255,.04);color:var(--white)}
+.ni.active{background:var(--acc-soft);color:var(--acc);font-weight:500}
+.ni .ic{font-size:13px;width:17px;text-align:center;flex-shrink:0}
+.ni .badge{margin-left:auto;font-family:var(--ff-mono);font-size:9px;padding:1px 6px;background:var(--acc-dim);border-radius:10px;color:var(--acc)}
+.sidebar-foot{padding:12px 14px;border-top:1px solid var(--rule)}
+.u-row{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.u-av{width:28px;height:28px;border-radius:50%;background:var(--acc-dim);border:1px solid var(--acc-glow);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--acc);flex-shrink:0}
+.u-name{font-size:11.5px;font-weight:500;color:var(--white)}
+.u-role{font-family:var(--ff-mono);font-size:9px;color:var(--fog)}
 
-/* main area */
-.main-area{display:flex;flex-direction:column}
-.topbar{padding:14px 28px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;background:var(--ink)}
-.topbar-title{font-size:14px;font-weight:500}
-.role-badge{padding:4px 10px;border-radius:20px;font-family:var(--ff-mono);font-size:9px;letter-spacing:.8px;text-transform:uppercase;background:rgba(200,169,110,.12);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
-.content{padding:24px 28px;display:flex;flex-direction:column;gap:22px}
+/* ── Main area ── */
+.main-area{display:flex;flex-direction:column;min-height:0}
+.topbar{padding:12px 24px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;background:var(--ink);position:sticky;top:88px;z-index:5}
+.topbar-title{font-size:13.5px;font-weight:500}
+.role-badge{padding:3px 9px;border-radius:20px;font-family:var(--ff-mono);font-size:9px;letter-spacing:.7px;text-transform:uppercase}
+.rb-head{background:rgba(200,169,110,.12);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
+.content{padding:20px 24px;display:flex;flex-direction:column;gap:18px}
 
-/* KPI */
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.kpi{padding:18px 20px;background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);position:relative;overflow:hidden}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--acc);opacity:.6}
-.kpi-val{font-size:26px;font-weight:600;color:var(--white);margin-bottom:4px;font-family:var(--ff-mono)}
-.kpi-label{font-size:11px;color:var(--fog)}
-.kpi-delta{font-size:10.5px;margin-top:6px;font-family:var(--ff-mono);color:var(--acc)}
+/* ── KPI strip ── */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.kpi{padding:16px 18px;background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--acc);opacity:.55}
+.kpi-val{font-size:22px;font-weight:600;color:var(--white);margin-bottom:3px;font-family:var(--ff-mono)}
+.kpi-label{font-size:10.5px;color:var(--fog);letter-spacing:.2px}
+.kpi-delta{font-size:10px;margin-top:5px;font-family:var(--ff-mono);color:var(--acc)}
 
-/* section */
+/* ── Section card ── */
 .section{background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);overflow:hidden}
-.section-head{padding:14px 20px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between}
-.section-title{font-size:13px;font-weight:600}
-.btn-primary{padding:7px 16px;background:var(--acc);border:none;border-radius:var(--r);font-size:12px;font-weight:600;color:var(--ink);cursor:default;font-family:var(--ff-body)}
+.section-head{padding:12px 18px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.section-title{font-size:12.5px;font-weight:600}
+.section-desc{font-size:11px;color:var(--fog);margin-top:1px}
 
-/* report table */
+/* ── Report table ── */
 .report-table{width:100%;border-collapse:collapse}
-.report-table th{font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fog);padding:10px 20px;text-align:left;border-bottom:1px solid var(--rule)}
-.report-table td{padding:11px 20px;font-size:12.5px;border-bottom:1px solid var(--rule);vertical-align:middle}
+.report-table th{font-family:var(--ff-mono);font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--fog);padding:9px 18px;text-align:left;border-bottom:1px solid var(--rule)}
+.report-table td{padding:10px 18px;font-size:12px;border-bottom:1px solid var(--rule);vertical-align:middle}
 .report-table tr:last-child td{border-bottom:none}
-.stage-pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-family:var(--ff-mono);font-size:9.5px}
+.stage-pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-family:var(--ff-mono);font-size:9px}
 .s-draft{background:rgba(61,74,96,.3);color:#7a8599;border:1px solid rgba(61,74,96,.4)}
 .s-submitted{background:rgba(74,127,232,.1);color:#4a7fe8;border:1px solid rgba(74,127,232,.2)}
 .s-senior_review{background:rgba(155,114,232,.1);color:#9b72e8;border:1px solid rgba(155,114,232,.2)}
 .s-approved{background:rgba(142,212,74,.1);color:#8ed44a;border:1px solid rgba(142,212,74,.2)}
 .s-published{background:rgba(76,255,145,.1);color:#4cff91;border:1px solid rgba(76,255,145,.2)}
-.btn-approve{padding:5px 12px;background:var(--acc-dim);border:1px solid var(--acc-glow);border-radius:var(--r);font-size:11px;color:var(--acc);cursor:default;font-family:var(--ff-body)}
-.btn-reject{padding:5px 12px;background:rgba(232,93,74,.08);border:1px solid rgba(232,93,74,.2);border-radius:var(--r);font-size:11px;color:#e85d4a;cursor:default;font-family:var(--ff-body)}
-.btn-publish{padding:5px 12px;background:rgba(200,169,110,.12);border:1px solid rgba(200,169,110,.25);border-radius:var(--r);font-size:11px;color:#c8a96e;cursor:default;font-family:var(--ff-body)}
-.priority-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
-.p-high{background:#e85d4a}.p-med{background:#c8a96e}.p-low{background:#3d4a60}
+.p-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:4px}
+.ph{background:#e85d4a}.pm{background:#c8a96e}.pl{background:#3d4a60}
+.btn-sm{padding:4px 10px;border:none;border-radius:var(--r);font-size:10.5px;cursor:default;font-family:var(--ff-body)}
+.btn-approve{background:var(--acc-dim);border:1px solid var(--acc-glow);color:var(--acc)}
+.btn-reject{background:rgba(232,93,74,.08);border:1px solid rgba(232,93,74,.2);color:#e85d4a}
+.btn-publish{background:rgba(200,169,110,.12);border:1px solid rgba(200,169,110,.25);color:#c8a96e}
+.btn-primary{padding:6px 14px;background:var(--acc);border:none;border-radius:var(--r);font-size:11.5px;font-weight:600;color:var(--ink);cursor:default;font-family:var(--ff-body)}
 
-/* factsheet cards */
-.factsheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;padding:16px}
-.fs-card{padding:16px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2)}
-.fs-status{font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;color:var(--acc)}
-.fs-title{font-size:13px;font-weight:500;margin-bottom:5px}
-.fs-sub{font-size:11.5px;color:var(--fog);line-height:1.5;margin-bottom:10px}
-.fs-metrics{display:flex;gap:16px}
-.fs-metric-val{font-family:var(--ff-mono);font-size:14px;font-weight:500;color:var(--acc)}
-.fs-metric-label{font-size:9.5px;color:var(--fog);margin-top:1px}
+/* ── Factsheet cards ── */
+.fs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;padding:14px}
+.fs-card{padding:14px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2)}
+.fs-status{font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;color:var(--acc)}
+.fs-title{font-size:12.5px;font-weight:500;margin-bottom:4px;line-height:1.4}
+.fs-sub{font-size:11px;color:var(--fog);line-height:1.5;margin-bottom:9px}
+.fs-metrics{display:flex;gap:14px;flex-wrap:wrap}
+.fm-val{font-family:var(--ff-mono);font-size:13px;font-weight:500;color:var(--acc)}
+.fm-lbl{font-size:9px;color:var(--fog);margin-top:1px}
 
-/* data sources */
-.source-row{display:flex;align-items:center;justify-content:space-between;padding:11px 20px;border-bottom:1px solid var(--rule)}
-.source-row:last-child{border-bottom:none}
-.source-info{display:flex;align-items:center;gap:10px}
-.source-status{width:7px;height:7px;border-radius:50%}
-.status-live{background:#4cff91;box-shadow:0 0 6px rgba(76,255,145,.4)}
-.status-stale{background:#c8a96e}
-.source-name{font-size:12.5px}
-.source-tier{font-family:var(--ff-mono);font-size:9px;color:var(--fog);padding:1px 5px;background:rgba(255,255,255,.04);border-radius:3px}
-.source-meta{font-size:11px;color:var(--fog);font-family:var(--ff-mono)}
+/* ── Data sources ── */
+.src-row{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--rule)}
+.src-row:last-child{border-bottom:none}
+.src-left{display:flex;align-items:center;gap:9px}
+.src-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.live{background:#4cff91;box-shadow:0 0 5px rgba(76,255,145,.4)}
+.stale{background:#c8a96e}
+.error{background:#e85d4a}
+.src-name{font-size:12px}
+.src-tier{font-family:var(--ff-mono);font-size:8.5px;color:var(--fog);padding:1px 5px;background:rgba(255,255,255,.04);border-radius:3px;margin-left:3px}
+.src-meta{font-size:10.5px;color:var(--fog);font-family:var(--ff-mono)}
+
+/* ════════════════════════════════════════════════════
+   DELIVERABLES UPLOAD HUB — the new section
+════════════════════════════════════════════════════ */
+.deliv-tabs{display:flex;gap:0;border-bottom:1px solid var(--rule)}
+.dtab{display:flex;align-items:center;gap:7px;padding:11px 18px;font-size:12px;color:var(--fog);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--ff-body);white-space:nowrap}
+.dtab:hover{color:var(--white)}
+.dtab.active{color:var(--white);border-bottom-color:var(--acc)}
+.dtab-icon{font-size:14px}
+.dtab-label{font-weight:500}
+.dtab-hint{font-family:var(--ff-mono);font-size:9px;color:var(--ghost);margin-left:2px}
+
+.deliv-panel{display:none;padding:20px}
+.deliv-panel.show{display:block}
 
 /* upload zone */
-.upload-zone{margin:16px;padding:28px;border:1.5px dashed var(--rule2);border-radius:var(--r2);text-align:center}
-.upload-icon{font-size:28px;margin-bottom:10px}
-.upload-label{font-size:13px;color:var(--fog);margin-bottom:4px}
-.upload-hint{font-family:var(--ff-mono);font-size:10px;color:var(--ghost)}
+.upzone{border:1.5px dashed var(--rule2);border-radius:var(--r2);padding:28px 20px;text-align:center;transition:border-color .2s,background .2s;cursor:pointer;position:relative}
+.upzone:hover,.upzone.drag{border-color:var(--acc-glow);background:var(--acc-soft)}
+.upzone-icon{font-size:30px;margin-bottom:10px}
+.upzone-title{font-size:13px;font-weight:500;color:var(--white);margin-bottom:4px}
+.upzone-sub{font-size:11.5px;color:var(--fog);margin-bottom:3px}
+.upzone-formats{font-family:var(--ff-mono);font-size:10px;color:var(--ghost);letter-spacing:.5px}
 
-@media(max-width:800px){
+/* upload meta form */
+.meta-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.mf-full{grid-column:1/-1}
+.mf-label{font-family:var(--ff-mono);font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--fog);margin-bottom:5px;display:block}
+.mf-input{width:100%;padding:8px 11px;background:var(--ink3);border:1.5px solid var(--rule2);border-radius:var(--r);font-size:12.5px;color:var(--white);font-family:var(--ff-body);outline:none}
+.mf-input:focus{border-color:var(--acc)}
+.mf-select{width:100%;padding:8px 11px;background:var(--ink3);border:1.5px solid var(--rule2);border-radius:var(--r);font-size:12.5px;color:var(--white);font-family:var(--ff-body);outline:none;cursor:pointer}
+.mf-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--rule)}
+.btn-cancel{padding:7px 14px;background:transparent;border:1px solid var(--rule2);border-radius:var(--r);font-size:12px;color:var(--fog);cursor:default;font-family:var(--ff-body)}
+
+/* uploaded files list */
+.uploaded-list{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+.ufile{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2)}
+.ufile-icon{font-size:20px;flex-shrink:0}
+.ufile-info{flex:1;min-width:0}
+.ufile-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.ufile-meta{font-size:10.5px;color:var(--fog);font-family:var(--ff-mono)}
+.ufile-status{font-family:var(--ff-mono);font-size:9px;padding:2px 8px;border-radius:10px}
+.us-attached{background:rgba(76,255,145,.08);color:#4cff91;border:1px solid rgba(76,255,145,.15)}
+.us-review{background:var(--acc-dim);color:var(--acc);border:1px solid var(--acc-glow)}
+.us-pending{background:rgba(200,169,110,.1);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
+
+/* topline data table */
+.topline-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.tl-card{padding:14px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2)}
+.tl-card-title{font-family:var(--ff-mono);font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--fog);margin-bottom:10px}
+.tl-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--rule)}
+.tl-row:last-child{border-bottom:none}
+.tl-metric{font-size:12px;color:var(--fog)}
+.tl-value{font-family:var(--ff-mono);font-size:13px;font-weight:500;color:var(--white)}
+.tl-delta{font-family:var(--ff-mono);font-size:10px;padding:1px 6px;border-radius:10px;margin-left:6px}
+.tl-up{background:rgba(76,255,145,.08);color:#4cff91}
+.tl-down{background:rgba(232,93,74,.08);color:#e85d4a}
+
+/* hint boxes */
+.info-box{padding:12px 14px;background:var(--acc-soft);border:1px solid var(--acc-dim);border-radius:var(--r2);font-size:11.5px;color:var(--fog);line-height:1.6;margin-bottom:14px}
+.info-box strong{color:var(--white)}
+
+/* deliverable type tag */
+.dtype-tag{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:4px;font-family:var(--ff-mono);font-size:9px;letter-spacing:.5px;font-weight:600}
+.dt-report{background:rgba(74,127,232,.1);color:#4a7fe8;border:1px solid rgba(74,127,232,.2)}
+.dt-model{background:rgba(76,175,120,.1);color:#4caf78;border:1px solid rgba(76,175,120,.2)}
+.dt-deck{background:rgba(155,114,232,.1);color:#9b72e8;border:1px solid rgba(155,114,232,.2)}
+.dt-data{background:rgba(200,169,110,.1);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
+
+@media(max-width:860px){
   .workspace{grid-template-columns:1fr}
   .sidebar{display:none}
   .kpi-row{grid-template-columns:1fr 1fr}
+  .meta-form{grid-template-columns:1fr}
+  .topline-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -134,277 +206,742 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
 <!-- top nav -->
 <div class="topnav">
   <div class="logo">Intelligence Platform</div>
-  <div style="display:flex;align-items:center;gap:12px">
+  <div style="display:flex;align-items:center;gap:10px">
     <span class="preview-badge">Preview Mode</span>
     <a href="/" class="login-link">Sign in →</a>
   </div>
 </div>
 
-<!-- preview banner -->
+<!-- banner -->
 <div class="preview-banner">
   <span>👁</span>
-  <span>READ-ONLY PREVIEW — This shows the analyst workspace UI for each intelligence vertical. Sign in with your credentials to access live data.</span>
+  <span>READ-ONLY PREVIEW — Showcasing all 6 intelligence verticals and deliverable upload structure. Sign in to access live data.</span>
 </div>
 
-<!-- vertical tabs -->
-<div class="tab-row" id="tabRow">
-  <button class="tab active" onclick="switchTab('epi',this)" style="--acc:#2ec4b6">
-    <span class="tab-dot" style="background:#2ec4b6"></span>Epidemiology
-  </button>
-  <button class="tab" onclick="switchTab('agri',this)" style="--acc:#4caf78">
-    <span class="tab-dot" style="background:#4caf78"></span>Agriculture
-  </button>
-  <button class="tab" onclick="switchTab('trade',this)" style="--acc:#4a7fe8">
-    <span class="tab-dot" style="background:#4a7fe8"></span>Trade
-  </button>
-  <button class="tab" onclick="switchTab('markets',this)" style="--acc:#c8a96e">
-    <span class="tab-dot" style="background:#c8a96e"></span>Markets
-  </button>
-  <button class="tab" onclick="switchTab('packaging',this)" style="--acc:#e85d4a">
-    <span class="tab-dot" style="background:#e85d4a"></span>Packaging
-  </button>
-  <button class="tab" onclick="switchTab('startups',this)" style="--acc:#9b72e8">
-    <span class="tab-dot" style="background:#9b72e8"></span>Startups
-  </button>
+<!-- vertical switcher -->
+<div class="vert-tabs" id="vertTabs">
+  <button class="vtab active" onclick="switchVert('epi',this)"><span class="vtab-dot" style="background:#2ec4b6"></span>Epidemiology</button>
+  <button class="vtab" onclick="switchVert('agri',this)"><span class="vtab-dot" style="background:#4caf78"></span>Agriculture</button>
+  <button class="vtab" onclick="switchVert('trade',this)"><span class="vtab-dot" style="background:#4a7fe8"></span>Trade</button>
+  <button class="vtab" onclick="switchVert('markets',this)"><span class="vtab-dot" style="background:#c8a96e"></span>Markets</button>
+  <button class="vtab" onclick="switchVert('packaging',this)"><span class="vtab-dot" style="background:#e85d4a"></span>Packaging</button>
+  <button class="vtab" onclick="switchVert('startups',this)"><span class="vtab-dot" style="background:#9b72e8"></span>Startups</button>
 </div>
 
-<!-- workspace panels (one per vertical) -->
-<div id="panels"></div>
+<div id="workspaceRoot"></div>
 
 <script>
-const VERTICALS = {
-  epi:       { label:'Epidemiology', acc:'#2ec4b6', accRgb:'46,196,182',  accDim:'rgba(46,196,182,.12)',  accGlow:'rgba(46,196,182,.2)',  accSoft:'rgba(46,196,182,.08)',  reports: [
-    {title:'Global Respiratory Virus Burden 2026',       stage:'published',      priority:'high', author:'Dr. R. Sharma',   updated:'02 Nov 2026'},
-    {title:'Antimicrobial Resistance Trends — South Asia', stage:'senior_review', priority:'high', author:'A. Nair',         updated:'04 Nov 2026'},
-    {title:'Vector-Borne Disease Index Q4 2026',          stage:'submitted',      priority:'med',  author:'P. Krishnan',     updated:'03 Nov 2026'},
-    {title:'Vaccine Coverage Gaps — Rural India',         stage:'draft',          priority:'med',  author:'S. Mehta',        updated:'01 Nov 2026'},
-  ], factsheets:[
-    {title:'Respiratory Virus Burden',  sub:'Seasonal and pandemic-risk index across 40 markets',  metrics:[{val:'40',label:'Markets'},{val:'Q4',label:'Cadence'}]},
-    {title:'AMR Resistance Index',      sub:'Antibiotic resistance surveillance across South Asia', metrics:[{val:'18',label:'Pathogens'},{val:'Monthly',label:'Update'}]},
-    {title:'Vaccine Coverage Tracker',  sub:'District-level immunisation coverage, India',         metrics:[{val:'736',label:'Districts'},{val:'Weekly',label:'Update'}]},
-  ], sources:[
-    {name:'WHO Global Health Observatory', tier:'T1', status:'live',  meta:'Last sync: 2h ago'},
-    {name:'ICMR Surveillance Feed',         tier:'T1', status:'live',  meta:'Last sync: 4h ago'},
-    {name:'ECDC Weekly Bulletin',           tier:'T2', status:'live',  meta:'Last sync: 1d ago'},
-    {name:'PubMed Clinical Trials Feed',    tier:'T2', status:'stale', meta:'Last sync: 3d ago'},
-  ], kpis:{total:12, published:4, inReview:5, sources:4}},
+/* ══════════════════════════════════════════════════════
+   DATA — one object per vertical
+══════════════════════════════════════════════════════ */
+const V = {
+  epi:{
+    label:'Epidemiology', key:'epi',
+    acc:'#2ec4b6', accRgb:'46,196,182',
+    kpis:{total:12,published:4,inReview:5,sources:4,deliverables:17},
+    reports:[
+      {title:'Global Respiratory Virus Burden 2026',         stage:'published',     priority:'high', author:'Dr. R. Sharma',  updated:'02 Nov',
+       deliverables:['report','model','deck','data']},
+      {title:'Antimicrobial Resistance Trends — South Asia', stage:'senior_review', priority:'high', author:'A. Nair',        updated:'04 Nov',
+       deliverables:['report','model']},
+      {title:'Vector-Borne Disease Index Q4 2026',           stage:'submitted',     priority:'med',  author:'P. Krishnan',   updated:'03 Nov',
+       deliverables:['report']},
+      {title:'Vaccine Coverage Gaps — Rural India',          stage:'draft',         priority:'med',  author:'S. Mehta',      updated:'01 Nov',
+       deliverables:[]},
+    ],
+    factsheets:[
+      {title:'Respiratory Virus Burden',sub:'Seasonal and pandemic-risk index across 40 markets',metrics:[{v:'40',l:'Markets'},{v:'Q4',l:'Cadence'}]},
+      {title:'AMR Resistance Index',sub:'Antibiotic resistance surveillance, South Asia',metrics:[{v:'18',l:'Pathogens'},{v:'Monthly',l:'Update'}]},
+      {title:'Vaccine Coverage Tracker',sub:'District-level immunisation, India',metrics:[{v:'736',l:'Districts'},{v:'Weekly',l:'Update'}]},
+    ],
+    sources:[
+      {n:'WHO Global Health Observatory',tier:'T1',st:'live',meta:'Last sync: 2h ago'},
+      {n:'ICMR Surveillance Feed',tier:'T1',st:'live',meta:'Last sync: 4h ago'},
+      {n:'ECDC Weekly Bulletin',tier:'T2',st:'live',meta:'Last sync: 1d ago'},
+      {n:'PubMed Clinical Trials Feed',tier:'T2',st:'stale',meta:'Last sync: 3d ago'},
+    ],
+    uploadedFiles:{
+      report:[
+        {name:'Global_Respiratory_Burden_2026_v2.docx',size:'4.2 MB',updated:'02 Nov',status:'attached',reportTitle:'Global Respiratory Virus Burden 2026'},
+        {name:'AMR_South_Asia_2026_Draft.docx',size:'2.8 MB',updated:'04 Nov',status:'review',reportTitle:'AMR Trends — South Asia'},
+      ],
+      model:[
+        {name:'Respiratory_Burden_Model_v2.xlsx',size:'18.6 MB',updated:'02 Nov',status:'attached',reportTitle:'Global Respiratory Virus Burden 2026'},
+        {name:'Vaccine_Coverage_Model_v1.xlsx',size:'9.1 MB',updated:'01 Nov',status:'pending',reportTitle:'Vaccine Coverage Gaps'},
+      ],
+      deck:[
+        {name:'Respiratory_Burden_Client_Deck.pptx',size:'6.3 MB',updated:'02 Nov',status:'attached',reportTitle:'Global Respiratory Virus Burden 2026'},
+      ],
+      data:[
+        {name:'respiratory_topline_q4_2026.csv',size:'142 KB',updated:'02 Nov',status:'attached',reportTitle:'Global Respiratory Virus Burden 2026'},
+        {name:'vaccine_coverage_metrics_nov2026.json',size:'88 KB',updated:'01 Nov',status:'review',reportTitle:'Vaccine Coverage Gaps'},
+      ],
+    },
+    topline:{
+      geography:'India + 12 Markets',
+      metrics:[
+        {metric:'Respiratory Hospitalisations per 100k', value:'148.3', delta:'+12.4%', dir:'down'},
+        {metric:'AMR Treatment Failure Rate',            value:'23.1%', delta:'+3.2%',  dir:'down'},
+        {metric:'Vaccine Coverage — Under 5',            value:'87.4%', delta:'+1.8%',  dir:'up'},
+        {metric:'Disease Burden Index (DBI)',            value:'6.42',  delta:'-0.11',  dir:'up'},
+        {metric:'Outbreak Risk Score (ORS)',             value:'3.8/10',delta:'+0.6',   dir:'down'},
+        {metric:'Avg. Treatment Cost (USD)',             value:'$214',  delta:'-8.2%',  dir:'up'},
+      ],
+    },
+  },
 
-  agri:      { label:'Agriculture',  acc:'#4caf78', accRgb:'76,175,120',  accDim:'rgba(76,175,120,.12)',  accGlow:'rgba(76,175,120,.2)',  accSoft:'rgba(76,175,120,.08)',  reports:[
-    {title:'Kharif Crop Output Forecast 2026',          stage:'published',  priority:'high', author:'V. Patel',    updated:'02 Nov 2026'},
-    {title:'Fertiliser Price Volatility — Q4 2026',     stage:'approved',   priority:'high', author:'M. Reddy',   updated:'04 Nov 2026'},
-    {title:'Precision Agriculture Adoption Index',       stage:'submitted',  priority:'med',  author:'A. Singh',   updated:'03 Nov 2026'},
-    {title:'Groundwater Depletion Risk — Punjab',        stage:'draft',      priority:'med',  author:'K. Joshi',   updated:'01 Nov 2026'},
-  ], factsheets:[
-    {title:'Kharif Crop Monitor',    sub:'Real-time output tracking across 15 key crops', metrics:[{val:'15',label:'Crops'},{val:'Weekly',label:'Update'}]},
-    {title:'Fertiliser Price Index', sub:'Pan-India fertiliser cost benchmarking',         metrics:[{val:'8',label:'Nutrients'},{val:'Monthly',label:'Update'}]},
-  ], sources:[
-    {name:'Ministry of Agriculture Data Portal', tier:'T1', status:'live',  meta:'Last sync: 1h ago'},
-    {name:'IMD Rainfall Feed',                   tier:'T1', status:'live',  meta:'Last sync: 6h ago'},
-    {name:'NABARD Rural Finance Data',            tier:'T2', status:'live',  meta:'Last sync: 1d ago'},
-  ], kpis:{total:9, published:3, inReview:3, sources:3}},
+  agri:{
+    label:'Agriculture', key:'agri',
+    acc:'#4caf78', accRgb:'76,175,120',
+    kpis:{total:9,published:3,inReview:3,sources:3,deliverables:11},
+    reports:[
+      {title:'Kharif Crop Output Forecast 2026',       stage:'published', priority:'high', author:'V. Patel',  updated:'02 Nov', deliverables:['report','model','deck','data']},
+      {title:'Fertiliser Price Volatility Q4 2026',    stage:'approved',  priority:'high', author:'M. Reddy',  updated:'04 Nov', deliverables:['report','model']},
+      {title:'Precision Agriculture Adoption Index',   stage:'submitted', priority:'med',  author:'A. Singh',  updated:'03 Nov', deliverables:['report']},
+      {title:'Groundwater Depletion Risk — Punjab',    stage:'draft',     priority:'med',  author:'K. Joshi',  updated:'01 Nov', deliverables:[]},
+    ],
+    factsheets:[
+      {title:'Kharif Crop Monitor',sub:'Real-time output tracking across 15 key crops',metrics:[{v:'15',l:'Crops'},{v:'Weekly',l:'Update'}]},
+      {title:'Fertiliser Price Index',sub:'Pan-India fertiliser cost benchmarking',metrics:[{v:'8',l:'Nutrients'},{v:'Monthly',l:'Update'}]},
+    ],
+    sources:[
+      {n:'Ministry of Agriculture Portal',tier:'T1',st:'live',meta:'Last sync: 1h ago'},
+      {n:'IMD Rainfall Feed',tier:'T1',st:'live',meta:'Last sync: 6h ago'},
+      {n:'NABARD Rural Finance Data',tier:'T2',st:'live',meta:'Last sync: 1d ago'},
+    ],
+    uploadedFiles:{
+      report:[{name:'Kharif_Crop_Forecast_2026.docx',size:'3.1 MB',updated:'02 Nov',status:'attached',reportTitle:'Kharif Crop Output Forecast 2026'}],
+      model:[{name:'Kharif_Crop_Model_v3.xlsx',size:'22.4 MB',updated:'02 Nov',status:'attached',reportTitle:'Kharif Crop Output Forecast 2026'}],
+      deck:[{name:'Kharif_Forecast_Deck.pptx',size:'5.8 MB',updated:'02 Nov',status:'attached',reportTitle:'Kharif Crop Output Forecast 2026'}],
+      data:[{name:'kharif_topline_metrics.csv',size:'98 KB',updated:'02 Nov',status:'attached',reportTitle:'Kharif Crop Output Forecast 2026'}],
+    },
+    topline:{
+      geography:'India — 15 States',
+      metrics:[
+        {metric:'Kharif Output Estimate (MT)',   value:'149.6',  delta:'+4.3%', dir:'up'},
+        {metric:'Avg Urea Price (₹/bag)',        value:'₹1,062', delta:'+18%',  dir:'down'},
+        {metric:'Rainfall vs LPA',               value:'+7.2%',  delta:'Normal',dir:'up'},
+        {metric:'Crop Stress Index',             value:'2.1/10', delta:'-0.4',  dir:'up'},
+        {metric:'MSP Realisation Rate',          value:'91.3%',  delta:'+2.1%', dir:'up'},
+      ],
+    },
+  },
 
-  trade:     { label:'Trade',        acc:'#4a7fe8', accRgb:'74,127,232',  accDim:'rgba(74,127,232,.12)',  accGlow:'rgba(74,127,232,.2)',  accSoft:'rgba(74,127,232,.08)',  reports:[
-    {title:'India–ASEAN Trade Corridor 2026',        stage:'published',      priority:'high', author:'N. Iyer',     updated:'01 Nov 2026'},
-    {title:'Export Control Regime Changes — Pharma', stage:'head_review',    priority:'high', author:'R. Bose',     updated:'04 Nov 2026'},
-    {title:'Logistics Cost Index — Q4 2026',         stage:'senior_review',  priority:'med',  author:'T. Gupta',    updated:'03 Nov 2026'},
-  ], factsheets:[
-    {title:'India–ASEAN Trade Monitor', sub:'Bilateral trade flows across 11 ASEAN markets',       metrics:[{val:'11',label:'Markets'},{val:'Monthly',label:'Update'}]},
-    {title:'Pharma Export Tracker',     sub:'Regulated export compliance across 60+ destinations', metrics:[{val:'60+',label:'Markets'},{val:'Weekly',label:'Update'}]},
-  ], sources:[
-    {name:'DGFT Export–Import Data',      tier:'T1', status:'live',  meta:'Last sync: 2h ago'},
-    {name:'WTO Trade Statistics',         tier:'T1', status:'live',  meta:'Last sync: 1d ago'},
-    {name:'RBI Cross-Border Payments',    tier:'T2', status:'live',  meta:'Last sync: 6h ago'},
-  ], kpis:{total:8, published:2, inReview:4, sources:3}},
+  trade:{
+    label:'Trade', key:'trade',
+    acc:'#4a7fe8', accRgb:'74,127,232',
+    kpis:{total:8,published:2,inReview:4,sources:3,deliverables:9},
+    reports:[
+      {title:'India–ASEAN Trade Corridor 2026',        stage:'published',    priority:'high', author:'N. Iyer',  updated:'01 Nov', deliverables:['report','model','deck','data']},
+      {title:'Export Control Regime Changes — Pharma', stage:'head_review',  priority:'high', author:'R. Bose',  updated:'04 Nov', deliverables:['report','model']},
+      {title:'Logistics Cost Index Q4 2026',           stage:'senior_review',priority:'med',  author:'T. Gupta', updated:'03 Nov', deliverables:['report']},
+    ],
+    factsheets:[
+      {title:'India–ASEAN Trade Monitor',sub:'Bilateral trade flows across 11 ASEAN markets',metrics:[{v:'11',l:'Markets'},{v:'Monthly',l:'Update'}]},
+      {title:'Pharma Export Tracker',sub:'Regulated export compliance, 60+ destinations',metrics:[{v:'60+',l:'Markets'},{v:'Weekly',l:'Update'}]},
+    ],
+    sources:[
+      {n:'DGFT Export–Import Data',tier:'T1',st:'live',meta:'Last sync: 2h ago'},
+      {n:'WTO Trade Statistics',tier:'T1',st:'live',meta:'Last sync: 1d ago'},
+      {n:'RBI Cross-Border Payments',tier:'T2',st:'live',meta:'Last sync: 6h ago'},
+    ],
+    uploadedFiles:{
+      report:[{name:'India_ASEAN_Trade_Report_2026.docx',size:'5.4 MB',updated:'01 Nov',status:'attached',reportTitle:'India–ASEAN Trade Corridor 2026'}],
+      model:[{name:'ASEAN_Trade_Model_v2.xlsx',size:'31.2 MB',updated:'01 Nov',status:'attached',reportTitle:'India–ASEAN Trade Corridor 2026'}],
+      deck:[{name:'ASEAN_Trade_Deck_Client.pptx',size:'7.1 MB',updated:'01 Nov',status:'attached',reportTitle:'India–ASEAN Trade Corridor 2026'}],
+      data:[{name:'asean_trade_topline.csv',size:'204 KB',updated:'01 Nov',status:'attached',reportTitle:'India–ASEAN Trade Corridor 2026'}],
+    },
+    topline:{
+      geography:'India + 11 ASEAN Markets',
+      metrics:[
+        {metric:'Total Trade Volume (USD Bn)',  value:'$84.2',  delta:'+9.1%', dir:'up'},
+        {metric:'Trade Deficit (USD Bn)',       value:'$12.4',  delta:'-3.2%', dir:'up'},
+        {metric:'Pharma Export Growth YoY',     value:'+22.4%', delta:'Q4',    dir:'up'},
+        {metric:'Avg Logistics Cost Index',     value:'112.4',  delta:'+6.3%', dir:'down'},
+        {metric:'FTA Utilisation Rate',         value:'64.1%',  delta:'+4.8%', dir:'up'},
+      ],
+    },
+  },
 
-  markets:   { label:'Markets',      acc:'#c8a96e', accRgb:'200,169,110', accDim:'rgba(200,169,110,.12)', accGlow:'rgba(200,169,110,.2)', accSoft:'rgba(200,169,110,.08)', reports:[
-    {title:'NSE Mid-Cap Momentum Report Q4 2026',   stage:'published',  priority:'high', author:'D. Shah',     updated:'02 Nov 2026'},
-    {title:'FPI Flow Analysis — Emerging Markets',  stage:'submitted',  priority:'high', author:'P. Verma',    updated:'04 Nov 2026'},
-    {title:'Interest Rate Sensitivity Model 2026',  stage:'draft',      priority:'med',  author:'A. Kumar',    updated:'03 Nov 2026'},
-  ], factsheets:[
-    {title:'Mid-Cap Momentum Index',   sub:'Weekly ranking of NSE mid-cap momentum factors', metrics:[{val:'200',label:'Stocks'},{val:'Weekly',label:'Update'}]},
-    {title:'FPI Flow Dashboard',       sub:'Foreign portfolio investment flow tracker',       metrics:[{val:'45',label:'Markets'},{val:'Daily',label:'Update'}]},
-  ], sources:[
-    {name:'NSE Market Feed',          tier:'T1', status:'live',  meta:'Last sync: 15m ago'},
-    {name:'RBI Monetary Policy Data', tier:'T1', status:'live',  meta:'Last sync: 1h ago'},
-    {name:'Bloomberg Macro Feed',     tier:'T1', status:'live',  meta:'Last sync: 30m ago'},
-  ], kpis:{total:11, published:3, inReview:2, sources:3}},
+  markets:{
+    label:'Markets', key:'markets',
+    acc:'#c8a96e', accRgb:'200,169,110',
+    kpis:{total:11,published:3,inReview:2,sources:3,deliverables:14},
+    reports:[
+      {title:'NSE Mid-Cap Momentum Q4 2026',    stage:'published', priority:'high', author:'D. Shah',   updated:'02 Nov', deliverables:['report','model','deck','data']},
+      {title:'FPI Flow Analysis — EM',          stage:'submitted', priority:'high', author:'P. Verma',  updated:'04 Nov', deliverables:['report','model']},
+      {title:'Interest Rate Sensitivity 2026',  stage:'draft',     priority:'med',  author:'A. Kumar',  updated:'03 Nov', deliverables:[]},
+    ],
+    factsheets:[
+      {title:'Mid-Cap Momentum Index',sub:'Weekly NSE mid-cap momentum factor ranking',metrics:[{v:'200',l:'Stocks'},{v:'Weekly',l:'Update'}]},
+      {title:'FPI Flow Dashboard',sub:'Foreign portfolio investment flow tracker',metrics:[{v:'45',l:'Markets'},{v:'Daily',l:'Update'}]},
+    ],
+    sources:[
+      {n:'NSE Market Feed',tier:'T1',st:'live',meta:'Last sync: 15m ago'},
+      {n:'RBI Monetary Policy',tier:'T1',st:'live',meta:'Last sync: 1h ago'},
+      {n:'Bloomberg Macro Feed',tier:'T1',st:'live',meta:'Last sync: 30m ago'},
+    ],
+    uploadedFiles:{
+      report:[{name:'NSE_MidCap_Momentum_Q4_2026.docx',size:'3.8 MB',updated:'02 Nov',status:'attached',reportTitle:'NSE Mid-Cap Momentum Q4 2026'}],
+      model:[{name:'MidCap_Quant_Model_v4.xlsx',size:'44.1 MB',updated:'02 Nov',status:'attached',reportTitle:'NSE Mid-Cap Momentum Q4 2026'}],
+      deck:[{name:'MidCap_Momentum_Client_Deck.pptx',size:'8.2 MB',updated:'02 Nov',status:'attached',reportTitle:'NSE Mid-Cap Momentum Q4 2026'}],
+      data:[{name:'midcap_topline_nov2026.csv',size:'312 KB',updated:'02 Nov',status:'attached',reportTitle:'NSE Mid-Cap Momentum Q4 2026'}],
+    },
+    topline:{
+      geography:'NSE — India Markets',
+      metrics:[
+        {metric:'Nifty Midcap 100 Return YTD',  value:'+18.4%', delta:'+18.4%', dir:'up'},
+        {metric:'FPI Net Inflow (USD Mn)',       value:'$2,840', delta:'+31%',   dir:'up'},
+        {metric:'10Y G-Sec Yield',              value:'6.84%',  delta:'+12bps', dir:'down'},
+        {metric:'India VIX',                    value:'13.2',   delta:'-1.4',   dir:'up'},
+        {metric:'INR/USD',                      value:'83.42',  delta:'+0.8%',  dir:'down'},
+      ],
+    },
+  },
 
-  packaging: { label:'Packaging',    acc:'#e85d4a', accRgb:'232,93,74',   accDim:'rgba(232,93,74,.12)',   accGlow:'rgba(232,93,74,.2)',   accSoft:'rgba(232,93,74,.08)',   reports:[
-    {title:'Plastic Packaging Regulatory Shift 2026',  stage:'published',      priority:'high', author:'S. Pillai',   updated:'01 Nov 2026'},
-    {title:'Flexible vs Rigid Packaging — FMCG India', stage:'senior_review',  priority:'med',  author:'L. Menon',    updated:'04 Nov 2026'},
-    {title:'Sustainable Packaging Adoption Index',     stage:'draft',          priority:'med',  author:'R. Thomas',   updated:'02 Nov 2026'},
-  ], factsheets:[
-    {title:'Plastic Regulation Tracker', sub:'Pan-India state-level plastic ban compliance', metrics:[{val:'28',label:'States'},{val:'Monthly',label:'Update'}]},
-    {title:'Sustainable Pack Index',     sub:'Adoption rates across FMCG top 100',           metrics:[{val:'100',label:'Companies'},{val:'Quarterly',label:'Update'}]},
-  ], sources:[
-    {name:'BIS Packaging Standards Portal',  tier:'T1', status:'live',  meta:'Last sync: 1d ago'},
-    {name:'FSSAI Compliance Database',       tier:'T1', status:'live',  meta:'Last sync: 6h ago'},
-    {name:'CPCB Plastic Waste Data',         tier:'T2', status:'stale', meta:'Last sync: 2d ago'},
-  ], kpis:{total:7, published:2, inReview:2, sources:3}},
+  packaging:{
+    label:'Packaging', key:'packaging',
+    acc:'#e85d4a', accRgb:'232,93,74',
+    kpis:{total:7,published:2,inReview:2,sources:3,deliverables:8},
+    reports:[
+      {title:'Plastic Packaging Regulatory Shift 2026',  stage:'published',    priority:'high', author:'S. Pillai', updated:'01 Nov', deliverables:['report','model','deck','data']},
+      {title:'Flexible vs Rigid Packaging — FMCG',       stage:'senior_review',priority:'med',  author:'L. Menon',  updated:'04 Nov', deliverables:['report','model']},
+      {title:'Sustainable Packaging Adoption Index',     stage:'draft',        priority:'med',  author:'R. Thomas', updated:'02 Nov', deliverables:[]},
+    ],
+    factsheets:[
+      {title:'Plastic Regulation Tracker',sub:'State-level plastic ban compliance, India',metrics:[{v:'28',l:'States'},{v:'Monthly',l:'Update'}]},
+      {title:'Sustainable Pack Index',sub:'FMCG top-100 adoption rates',metrics:[{v:'100',l:'Companies'},{v:'Quarterly',l:'Update'}]},
+    ],
+    sources:[
+      {n:'BIS Packaging Standards',tier:'T1',st:'live',meta:'Last sync: 1d ago'},
+      {n:'FSSAI Compliance Database',tier:'T1',st:'live',meta:'Last sync: 6h ago'},
+      {n:'CPCB Plastic Waste Data',tier:'T2',st:'stale',meta:'Last sync: 2d ago'},
+    ],
+    uploadedFiles:{
+      report:[{name:'Plastic_Packaging_Regulatory_2026.docx',size:'4.6 MB',updated:'01 Nov',status:'attached',reportTitle:'Plastic Packaging Regulatory Shift 2026'}],
+      model:[{name:'Pack_Cost_Model_v2.xlsx',size:'14.3 MB',updated:'01 Nov',status:'attached',reportTitle:'Plastic Packaging Regulatory Shift 2026'}],
+      deck:[{name:'Packaging_Client_Deck.pptx',size:'5.9 MB',updated:'01 Nov',status:'attached',reportTitle:'Plastic Packaging Regulatory Shift 2026'}],
+      data:[{name:'packaging_topline_q4.csv',size:'76 KB',updated:'01 Nov',status:'attached',reportTitle:'Plastic Packaging Regulatory Shift 2026'}],
+    },
+    topline:{
+      geography:'India — 28 States',
+      metrics:[
+        {metric:'SUP Ban Compliance Rate',         value:'72.4%', delta:'+8.1%', dir:'up'},
+        {metric:'Recycled Content Avg (FMCG)',     value:'18.3%', delta:'+3.4%', dir:'up'},
+        {metric:'Pack Cost Index (Base 2024=100)', value:'114.2', delta:'+6.2%', dir:'down'},
+        {metric:'EPR Compliance (Top 100)',        value:'84.6%', delta:'+11%',  dir:'up'},
+        {metric:'Plastic Waste Generated (MT)',   value:'3.46M', delta:'-2.1%', dir:'up'},
+      ],
+    },
+  },
 
-  startups:  { label:'Startups',     acc:'#9b72e8', accRgb:'155,114,232', accDim:'rgba(155,114,232,.12)', accGlow:'rgba(155,114,232,.2)', accSoft:'rgba(155,114,232,.08)', reports:[
-    {title:'India Deep-Tech Funding Landscape H2 2026', stage:'published',  priority:'high', author:'C. Rajan',    updated:'03 Nov 2026'},
-    {title:'Series A Valuation Benchmark Report',       stage:'approved',   priority:'high', author:'M. Khanna',   updated:'04 Nov 2026'},
-    {title:'Startup Failure Analysis 2026',             stage:'submitted',  priority:'med',  author:'R. Nair',     updated:'02 Nov 2026'},
-  ], factsheets:[
-    {title:'Deep-Tech Funding Monitor', sub:'Bi-weekly VC/PE deal flow across 8 sectors', metrics:[{val:'8',label:'Sectors'},{val:'Bi-weekly',label:'Update'}]},
-    {title:'Series A Benchmark Index',  sub:'Valuation multiples for pre-revenue startups', metrics:[{val:'120+',label:'Deals YTD'},{val:'Monthly',label:'Update'}]},
-  ], sources:[
-    {name:'Tracxn Deal Database',      tier:'T1', status:'live',  meta:'Last sync: 1h ago'},
-    {name:'MCA Incorporation Filings', tier:'T1', status:'live',  meta:'Last sync: 1d ago'},
-    {name:'SEBI AIF Disclosures',      tier:'T2', status:'live',  meta:'Last sync: 6h ago'},
-  ], kpis:{total:10, published:4, inReview:3, sources:3}},
+  startups:{
+    label:'Startups', key:'startups',
+    acc:'#9b72e8', accRgb:'155,114,232',
+    kpis:{total:10,published:4,inReview:3,sources:3,deliverables:12},
+    reports:[
+      {title:'India Deep-Tech Funding H2 2026',       stage:'published', priority:'high', author:'C. Rajan',  updated:'03 Nov', deliverables:['report','model','deck','data']},
+      {title:'Series A Valuation Benchmark Report',   stage:'approved',  priority:'high', author:'M. Khanna', updated:'04 Nov', deliverables:['report','model','deck']},
+      {title:'Startup Failure Analysis 2026',         stage:'submitted', priority:'med',  author:'R. Nair',   updated:'02 Nov', deliverables:['report']},
+    ],
+    factsheets:[
+      {title:'Deep-Tech Funding Monitor',sub:'Bi-weekly VC/PE deal flow across 8 sectors',metrics:[{v:'8',l:'Sectors'},{v:'Bi-weekly',l:'Update'}]},
+      {title:'Series A Benchmark Index',sub:'Valuation multiples for pre-revenue startups',metrics:[{v:'120+',l:'Deals YTD'},{v:'Monthly',l:'Update'}]},
+    ],
+    sources:[
+      {n:'Tracxn Deal Database',tier:'T1',st:'live',meta:'Last sync: 1h ago'},
+      {n:'MCA Incorporation Filings',tier:'T1',st:'live',meta:'Last sync: 1d ago'},
+      {n:'SEBI AIF Disclosures',tier:'T2',st:'live',meta:'Last sync: 6h ago'},
+    ],
+    uploadedFiles:{
+      report:[{name:'India_DeepTech_Funding_H2_2026.docx',size:'6.1 MB',updated:'03 Nov',status:'attached',reportTitle:'India Deep-Tech Funding H2 2026'}],
+      model:[{name:'Startup_Valuation_Model_v3.xlsx',size:'28.7 MB',updated:'03 Nov',status:'attached',reportTitle:'India Deep-Tech Funding H2 2026'}],
+      deck:[{name:'DeepTech_Client_Deck.pptx',size:'9.4 MB',updated:'03 Nov',status:'attached',reportTitle:'India Deep-Tech Funding H2 2026'}],
+      data:[{name:'startup_topline_h2_2026.csv',size:'188 KB',updated:'03 Nov',status:'attached',reportTitle:'India Deep-Tech Funding H2 2026'}],
+    },
+    topline:{
+      geography:'India — 8 Sectors',
+      metrics:[
+        {metric:'Total Funding H2 2026 (USD Mn)', value:'$4,820', delta:'+28%',   dir:'up'},
+        {metric:'Deal Count',                     value:'312',    delta:'+18%',   dir:'up'},
+        {metric:'Avg Series A Valuation (USD Mn)',value:'$42.6',  delta:'+9.4%',  dir:'up'},
+        {metric:'Failure Rate (< 36 months)',     value:'61.3%',  delta:'-2.1%',  dir:'up'},
+        {metric:'VC Dry Powder (USD Bn)',         value:'$6.8',   delta:'+14%',   dir:'up'},
+      ],
+    },
+  },
 };
 
-let current = 'epi';
-
-function switchTab(key, btn){
-  current = key;
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  btn.classList.add('active');
-  renderWorkspace(key);
-}
-
+/* ══════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════ */
 function esc(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
 
-function renderWorkspace(key){
-  const v = VERTICALS[key];
-  // Apply accent to :root
-  document.documentElement.style.setProperty('--acc', v.acc);
-  document.documentElement.style.setProperty('--acc-dim', v.accDim);
-  document.documentElement.style.setProperty('--acc-glow', v.accGlow);
-  document.documentElement.style.setProperty('--acc-soft', v.accSoft);
+const STAGE_LABELS = {draft:'Draft',submitted:'Submitted',senior_review:'Senior Review',
+  senior_approved:'Sr. Approved',head_review:'Head Review',approved:'Approved',
+  published:'Published',rejected:'Rejected'};
 
-  const stageBtns = {
-    published:'<span class="stage-pill s-published">Published</span>',
-    approved:'<span class="stage-pill s-approved">Approved</span>',
-    head_review:'<span class="stage-pill" style="background:rgba(200,169,110,.1);color:#c8a96e;border:1px solid rgba(200,169,110,.2)">Head Review</span>',
-    senior_review:'<span class="stage-pill s-senior_review">Senior Review</span>',
-    submitted:'<span class="stage-pill s-submitted">Submitted</span>',
-    draft:'<span class="stage-pill s-draft">Draft</span>',
-  };
-  const actionBtns = {
-    published:'<span style="font-size:11px;color:#3d4a60">—</span>',
-    approved:'<button class="btn-publish">Publish</button>',
-    head_review:'<button class="btn-approve">Approve</button> <button class="btn-reject">Reject</button>',
-    senior_review:'<button class="btn-approve">Approve</button> <button class="btn-reject">Reject</button>',
-    submitted:'<button class="btn-approve">Take for Review</button>',
-    draft:'<button class="btn-approve">Submit</button>',
-  };
+const DELIVERABLE_ICONS = {report:'📄',model:'📊',deck:'🎯',data:'🗃️'};
+const DELIVERABLE_LABELS = {report:'Report',model:'Model',deck:'Deck',data:'Data'};
+const FILE_ICONS = {docx:'📄',pdf:'📄',xlsx:'📊',xlsm:'📊',pptx:'🎯',csv:'🗃️',json:'🗃️'};
 
-  const reportRows = v.reports.map(r=>`
+function fileIcon(name){
+  const ext = (name.split('.').pop()||'').toLowerCase();
+  return FILE_ICONS[ext] || '📎';
+}
+
+function delivBadges(deliverables){
+  if(!deliverables || !deliverables.length) return '<span style="font-size:10.5px;color:#3d4a60">None yet</span>';
+  return deliverables.map(d=>`<span class="dtype-tag dt-${d}">${DELIVERABLE_LABELS[d]}</span>`).join(' ');
+}
+
+function stageActions(stage){
+  if(stage==='published') return '<span style="font-size:10.5px;color:#3d4a60">—</span>';
+  if(stage==='approved')  return '<button class="btn-sm btn-publish">Publish</button>';
+  if(stage==='head_review') return '<button class="btn-sm btn-approve">Approve</button> <button class="btn-sm btn-reject">Reject</button>';
+  if(stage==='senior_review') return '<button class="btn-sm btn-approve">Approve</button> <button class="btn-sm btn-reject">Reject</button>';
+  if(stage==='submitted') return '<button class="btn-sm btn-approve">Take for Review</button>';
+  if(stage==='draft')     return '<button class="btn-sm btn-approve">Submit</button>';
+  return '—';
+}
+
+/* deliverable tab content */
+function delivPanel_report(files){
+  return `
+  <div class="info-box">
+    <strong>Research Report (DOCX / PDF)</strong> — The full written study. Structured like McKinsey, IQVIA, or Euromonitor deliverables: executive summary, methodology, findings by geography/segment, implications, and appendix. Minimum 20–80 pages. Uploaded by the analyst who authored it; visible to senior + head post-approval.
+  </div>
+  <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+    <div style="flex:1;min-width:260px">
+      <div class="upzone">
+        <div class="upzone-icon">📄</div>
+        <div class="upzone-title">Drop Research Report here</div>
+        <div class="upzone-sub">Full written study — executive summary to appendix</div>
+        <div class="upzone-formats">DOCX · PDF · Max 100 MB</div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:260px">
+      <div class="meta-form">
+        <div class="mf-full"><label class="mf-label">Link to Report</label>
+          <select class="mf-select"><option>Global Respiratory Virus Burden 2026</option><option>AMR Trends — South Asia</option><option>Vector-Borne Disease Index Q4</option></select></div>
+        <div><label class="mf-label">Version</label><input class="mf-input" value="v2.0" readonly></div>
+        <div><label class="mf-label">Page Count</label><input class="mf-input" placeholder="e.g. 48" readonly></div>
+        <div class="mf-full"><label class="mf-label">Reviewer Notes (optional)</label><input class="mf-input" placeholder="Notes for senior/head…" readonly></div>
+        <div class="mf-full"><label class="mf-label">Visibility</label>
+          <select class="mf-select"><option>Internal only</option><option>Summary visible to clients</option><option>Full report visible to clients</option></select></div>
+      </div>
+      <div class="mf-actions">
+        <button class="btn-cancel">Cancel</button>
+        <button class="btn-primary">Upload Report</button>
+      </div>
+    </div>
+  </div>
+  <div class="uploaded-list">
+    ${files.map(f=>`
+    <div class="ufile">
+      <div class="ufile-icon">${fileIcon(f.name)}</div>
+      <div class="ufile-info">
+        <div class="ufile-name">${esc(f.name)}</div>
+        <div class="ufile-meta">${f.size} · ${f.updated} Nov · Linked to: ${esc(f.reportTitle)}</div>
+      </div>
+      <span class="ufile-status us-${f.status}">${f.status.toUpperCase()}</span>
+    </div>`).join('')}
+  </div>`;
+}
+
+function delivPanel_model(files){
+  return `
+  <div class="info-box">
+    <strong>Quantitative Model (XLSX)</strong> — The underlying Excel model from which all published numbers are derived. Bloomberg-style workbook with structured sheets: assumptions, raw data, computed outputs, scenario tables, and audit trail. Numbers from this model feed the topline data upload and front-end charts. Visible to senior + head only; analysts upload but cannot view others' models.
+  </div>
+  <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+    <div style="flex:1;min-width:260px">
+      <div class="upzone">
+        <div class="upzone-icon">📊</div>
+        <div class="upzone-title">Drop Excel Model here</div>
+        <div class="upzone-sub">Structured workbook — assumptions, data, outputs, scenarios</div>
+        <div class="upzone-formats">XLSX · XLSM · Max 200 MB</div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:260px">
+      <div class="meta-form">
+        <div class="mf-full"><label class="mf-label">Link to Report</label>
+          <select class="mf-select"><option>Global Respiratory Virus Burden 2026</option><option>AMR Trends — South Asia</option></select></div>
+        <div><label class="mf-label">Model Version</label><input class="mf-input" value="v2.0" readonly></div>
+        <div><label class="mf-label">Sheet Count</label><input class="mf-input" placeholder="e.g. 12" readonly></div>
+        <div class="mf-full"><label class="mf-label">Model Type</label>
+          <select class="mf-select"><option>Demand / Market Sizing</option><option>Financial Forecast</option><option>Epidemiological Projection</option><option>Pricing Model</option><option>Trade Flow Model</option><option>Other</option></select></div>
+        <div class="mf-full"><label class="mf-label">Data Sources Used (comma-separated)</label>
+          <input class="mf-input" value="WHO GHO, ICMR, ECDC" readonly></div>
+      </div>
+      <div class="mf-actions">
+        <button class="btn-cancel">Cancel</button>
+        <button class="btn-primary">Upload Model</button>
+      </div>
+    </div>
+  </div>
+  <div class="uploaded-list">
+    ${files.map(f=>`
+    <div class="ufile">
+      <div class="ufile-icon">${fileIcon(f.name)}</div>
+      <div class="ufile-info">
+        <div class="ufile-name">${esc(f.name)}</div>
+        <div class="ufile-meta">${f.size} · ${f.updated} Nov · Linked to: ${esc(f.reportTitle)}</div>
+      </div>
+      <span class="ufile-status us-${f.status}">${f.status.toUpperCase()}</span>
+    </div>`).join('')}
+  </div>`;
+}
+
+function delivPanel_deck(files){
+  return `
+  <div class="info-box">
+    <strong>Client Deck (PPTX)</strong> — The go-to-meeting slide deck. Crisp, visual, executive-ready. Structured in the McKinsey pyramid style: headline insight on each slide, supporting data below. Typically 12–20 slides: cover, executive summary, 3–5 key findings with charts, implications, and appendix. Ready to present to clients on the go — no editing needed post-approval.
+  </div>
+  <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+    <div style="flex:1;min-width:260px">
+      <div class="upzone">
+        <div class="upzone-icon">🎯</div>
+        <div class="upzone-title">Drop Client Deck here</div>
+        <div class="upzone-sub">Presentation-ready — 12 to 20 slides, executive summary format</div>
+        <div class="upzone-formats">PPTX · PDF · Max 100 MB</div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:260px">
+      <div class="meta-form">
+        <div class="mf-full"><label class="mf-label">Link to Report</label>
+          <select class="mf-select"><option>Global Respiratory Virus Burden 2026</option></select></div>
+        <div><label class="mf-label">Slide Count</label><input class="mf-input" placeholder="e.g. 16" readonly></div>
+        <div><label class="mf-label">Deck Version</label><input class="mf-input" value="v1.0" readonly></div>
+        <div class="mf-full"><label class="mf-label">Audience</label>
+          <select class="mf-select"><option>Client — C-Suite</option><option>Client — Strategy Team</option><option>Internal Review Only</option><option>Board Presentation</option></select></div>
+        <div class="mf-full"><label class="mf-label">Branding</label>
+          <select class="mf-select"><option>Platform branded (default)</option><option>White-label (client)</option></select></div>
+      </div>
+      <div class="mf-actions">
+        <button class="btn-cancel">Cancel</button>
+        <button class="btn-primary">Upload Deck</button>
+      </div>
+    </div>
+  </div>
+  <div class="uploaded-list">
+    ${files.map(f=>`
+    <div class="ufile">
+      <div class="ufile-icon">${fileIcon(f.name)}</div>
+      <div class="ufile-info">
+        <div class="ufile-name">${esc(f.name)}</div>
+        <div class="ufile-meta">${f.size} · ${f.updated} Nov · Linked to: ${esc(f.reportTitle)}</div>
+      </div>
+      <span class="ufile-status us-${f.status}">${f.status.toUpperCase()}</span>
+    </div>`).join('')}
+  </div>`;
+}
+
+function delivPanel_data(vert, files){
+  const tl = vert.topline;
+  return `
+  <div class="info-box">
+    <strong>Topline Data Upload (CSV / JSON)</strong> — Structured key metrics extracted from the Excel model. These numbers directly power the front-end: KPI cards, heatmaps, trend charts, and comparison tables visible to logged-in clients post-publication. Format: one row per metric with geography, period, value, unit, and delta. Validated against the model on upload.
+  </div>
+  <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+    <div style="flex:1;min-width:260px">
+      <div class="upzone">
+        <div class="upzone-icon">🗃️</div>
+        <div class="upzone-title">Drop Topline Data here</div>
+        <div class="upzone-sub">Structured key metrics — feeds KPI cards, heatmaps, charts</div>
+        <div class="upzone-formats">CSV · JSON · Max 10 MB per file</div>
+      </div>
+      <div style="margin-top:12px;padding:12px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2)">
+        <div style="font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Expected CSV format</div>
+        <pre style="font-family:var(--ff-mono);font-size:10px;color:var(--acc);line-height:1.6;overflow-x:auto">metric,geography,period,value,unit,delta,dir
+Hospitalisations per 100k,India,Q4 2026,148.3,per 100k,+12.4%,down
+AMR Failure Rate,South Asia,Q4 2026,23.1,%,+3.2%,down
+Vaccine Coverage U5,India,Nov 2026,87.4,%,+1.8%,up</pre>
+      </div>
+    </div>
+    <div style="flex:1;min-width:260px">
+      <div class="meta-form">
+        <div class="mf-full"><label class="mf-label">Link to Report</label>
+          <select class="mf-select"><option>Global Respiratory Virus Burden 2026</option><option>AMR Trends — South Asia</option><option>Vaccine Coverage Gaps</option></select></div>
+        <div><label class="mf-label">Reference Period</label><input class="mf-input" value="Q4 2026" readonly></div>
+        <div><label class="mf-label">Geography</label><input class="mf-input" value="${esc(tl.geography)}" readonly></div>
+        <div class="mf-full"><label class="mf-label">Publish to Front-End</label>
+          <select class="mf-select"><option>Yes — publish on report approval</option><option>No — internal only</option></select></div>
+      </div>
+      <div class="mf-actions">
+        <button class="btn-cancel">Cancel</button>
+        <button class="btn-primary">Upload Data</button>
+      </div>
+      <!-- live preview of published topline -->
+      <div style="margin-top:16px">
+        <div style="font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Currently published metrics — ${esc(tl.geography)}</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${tl.metrics.map(m=>`
+          <div class="tl-row">
+            <span class="tl-metric">${esc(m.metric)}</span>
+            <span style="display:flex;align-items:center">
+              <span class="tl-value">${esc(m.value)}</span>
+              <span class="tl-delta tl-${m.dir}">${esc(m.delta)}</span>
+            </span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="uploaded-list">
+    ${files.map(f=>`
+    <div class="ufile">
+      <div class="ufile-icon">${fileIcon(f.name)}</div>
+      <div class="ufile-info">
+        <div class="ufile-name">${esc(f.name)}</div>
+        <div class="ufile-meta">${f.size} · ${f.updated} Nov · Linked to: ${esc(f.reportTitle)}</div>
+      </div>
+      <span class="ufile-status us-${f.status}">${f.status.toUpperCase()}</span>
+    </div>`).join('')}
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════════
+   RENDER
+══════════════════════════════════════════════════ */
+let activeDelivTab = 'report';
+
+function switchDelivTab(key, el){
+  activeDelivTab = key;
+  el.closest('.section').querySelectorAll('.dtab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  el.closest('.section').querySelectorAll('.deliv-panel').forEach(p=>p.classList.remove('show'));
+  el.closest('.section').querySelector('#dp-'+key).classList.add('show');
+}
+window.switchDelivTab = switchDelivTab;
+
+function switchVert(key, btn){
+  const vert = V[key];
+  document.querySelectorAll('.vtab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.documentElement.style.setProperty('--acc', vert.acc);
+  document.documentElement.style.setProperty('--acc-dim', `rgba(${vert.accRgb},.12)`);
+  document.documentElement.style.setProperty('--acc-glow', `rgba(${vert.accRgb},.2)`);
+  document.documentElement.style.setProperty('--acc-soft', `rgba(${vert.accRgb},.08)`);
+  renderWorkspace(vert);
+}
+window.switchVert = switchVert;
+
+function renderWorkspace(vert){
+  const prio = {high:'ph',med:'pm',low:'pl'};
+  const stageCls = s=>`stage-pill s-${s}`;
+
+  const reportRows = vert.reports.map(r=>`
     <tr>
-      <td><div style="font-weight:500">${esc(r.title)}</div></td>
-      <td>${stageBtns[r.stage]||r.stage}</td>
-      <td><span class="priority-dot p-${r.priority}"></span>${r.priority}</td>
-      <td style="font-size:11.5px;color:#7a8599">${esc(r.author)}</td>
+      <td><div style="font-weight:500;font-size:12px">${esc(r.title)}</div>
+          <div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap">${delivBadges(r.deliverables)}</div></td>
+      <td><span class="${stageCls(r.stage)}">${STAGE_LABELS[r.stage]}</span></td>
+      <td><span class="p-dot ${prio[r.priority]||'pm'}"></span>${r.priority}</td>
+      <td style="font-size:11px;color:#7a8599">${esc(r.author)}</td>
       <td style="font-size:11px;font-family:monospace;color:#7a8599">${r.updated}</td>
-      <td>${actionBtns[r.stage]||'—'}</td>
+      <td>${stageActions(r.stage)}</td>
     </tr>`).join('');
 
-  const fsCards = v.factsheets.map(f=>`
+  const fsCards = vert.factsheets.map(f=>`
     <div class="fs-card">
       <div class="fs-status">PUBLISHED</div>
       <div class="fs-title">${esc(f.title)}</div>
       <div class="fs-sub">${esc(f.sub)}</div>
       <div class="fs-metrics">${(f.metrics||[]).map(m=>`
-        <div><div class="fs-metric-val">${esc(m.val)}</div><div class="fs-metric-label">${esc(m.label)}</div></div>`).join('')}
-      </div>
+        <div><div class="fm-val">${esc(m.v)}</div><div class="fm-lbl">${esc(m.l)}</div></div>`).join('')}</div>
     </div>`).join('');
 
-  const sourceRows = v.sources.map(s=>`
-    <div class="source-row">
-      <div class="source-info">
-        <span class="source-status status-${s.status}"></span>
-        <span class="source-name">${esc(s.name)}</span>
-        <span class="source-tier">${s.tier}</span>
+  const srcRows = vert.sources.map(s=>`
+    <div class="src-row">
+      <div class="src-left">
+        <span class="src-dot ${s.st}"></span>
+        <span class="src-name">${esc(s.n)}</span>
+        <span class="src-tier">${s.tier}</span>
       </div>
-      <div class="source-meta">${s.meta}</div>
+      <div class="src-meta">${s.meta}</div>
     </div>`).join('');
 
-  document.getElementById('panels').innerHTML = `
+  const tl = vert.topline;
+  const tlRows = tl.metrics.map(m=>`
+    <div class="tl-row">
+      <span class="tl-metric">${esc(m.metric)}</span>
+      <span style="display:flex;align-items:center">
+        <span class="tl-value">${esc(m.value)}</span>
+        <span class="tl-delta tl-${m.dir}">${esc(m.delta)}</span>
+      </span>
+    </div>`).join('');
+
+  document.getElementById('workspaceRoot').innerHTML = `
   <div class="workspace">
+
+    <!-- sidebar -->
     <aside class="sidebar">
       <div class="sidebar-top">
-        <div class="vertical-pill"><span class="vertical-dot"></span>${v.label}</div>
+        <div class="vpill"><span class="vdot"></span>${vert.label}</div>
         <div class="sidebar-title">Intelligence<br>Platform</div>
         <div class="sidebar-sub">Analyst Workspace</div>
       </div>
       <nav class="nav">
-        <span class="nav-section-label">Workspace</span>
-        <div class="nav-item active"><span class="icon">📊</span>Dashboard</div>
-        <div class="nav-item"><span class="icon">📋</span>Reports</div>
-        <div class="nav-item"><span class="icon">📄</span>Factsheets</div>
-        <div class="nav-item"><span class="icon">🔗</span>Data Sources</div>
-        <div class="nav-item"><span class="icon">⬆️</span>Upload Model</div>
+        <span class="nav-label">Workspace</span>
+        <button class="ni active"  onclick="showSec('dashboard',this)"><span class="ic">📊</span>Dashboard</button>
+        <button class="ni"         onclick="showSec('reports',this)"><span class="ic">📋</span>Reports <span class="badge">${vert.kpis.total}</span></button>
+        <button class="ni"         onclick="showSec('factsheets',this)"><span class="ic">📄</span>Factsheets</button>
+        <button class="ni"         onclick="showSec('sources',this)"><span class="ic">🔗</span>Data Sources</button>
+        <span class="nav-label" style="margin-top:8px">Deliverables</span>
+        <button class="ni"         onclick="showSec('deliverables',this)"><span class="ic">📦</span>Upload Hub <span class="badge">${vert.kpis.deliverables}</span></button>
+        <button class="ni"         onclick="showSec('topline',this)"><span class="ic">📈</span>Topline Data</button>
       </nav>
-      <div class="sidebar-footer">
-        <div class="user-row">
-          <div class="user-avatar">H</div>
+      <div class="sidebar-foot">
+        <div class="u-row">
+          <div class="u-av">H</div>
           <div>
-            <div class="user-name">Head of Research</div>
-            <div class="user-role">HEAD · ${v.label.toUpperCase()}</div>
+            <div class="u-name">Head of Research</div>
+            <div class="u-role">HEAD · ${vert.label.toUpperCase()}</div>
           </div>
         </div>
       </div>
     </aside>
+
+    <!-- main -->
     <div class="main-area">
       <div class="topbar">
-        <div class="topbar-title">Dashboard — ${v.label} Intelligence</div>
-        <span class="role-badge">Head of Research</span>
+        <div class="topbar-title" id="pageTitle">Dashboard — ${esc(vert.label)} Intelligence</div>
+        <span class="role-badge rb-head">Head of Research</span>
       </div>
       <div class="content">
-        <!-- KPIs -->
-        <div class="kpi-row">
-          <div class="kpi"><div class="kpi-val">${v.kpis.total}</div><div class="kpi-label">Total Reports</div><div class="kpi-delta">↑ Active pipeline</div></div>
-          <div class="kpi"><div class="kpi-val">${v.kpis.published}</div><div class="kpi-label">Published</div><div class="kpi-delta">↑ This quarter</div></div>
-          <div class="kpi"><div class="kpi-val">${v.kpis.inReview}</div><div class="kpi-label">In Review</div><div class="kpi-delta">Awaiting action</div></div>
-          <div class="kpi"><div class="kpi-val">${v.kpis.sources}</div><div class="kpi-label">Data Sources</div><div class="kpi-delta">Live feeds</div></div>
+
+        <!-- Dashboard -->
+        <div id="sec-dashboard">
+          <div class="kpi-row">
+            <div class="kpi"><div class="kpi-val">${vert.kpis.total}</div><div class="kpi-label">Total Reports</div><div class="kpi-delta">↑ Active pipeline</div></div>
+            <div class="kpi"><div class="kpi-val">${vert.kpis.published}</div><div class="kpi-label">Published</div><div class="kpi-delta">This quarter</div></div>
+            <div class="kpi"><div class="kpi-val">${vert.kpis.inReview}</div><div class="kpi-label">In Review</div><div class="kpi-delta">Awaiting action</div></div>
+            <div class="kpi"><div class="kpi-val">${vert.kpis.sources}</div><div class="kpi-label">Data Sources</div><div class="kpi-delta">Live feeds</div></div>
+            <div class="kpi"><div class="kpi-val">${vert.kpis.deliverables}</div><div class="kpi-label">Deliverables</div><div class="kpi-delta">Reports+Models+Decks</div></div>
+          </div>
+          <!-- topline snapshot on dashboard -->
+          <div class="section">
+            <div class="section-head">
+              <div><div class="section-title">Topline Metrics — ${esc(vert.label)}</div><div class="section-desc">${esc(tl.geography)} · As of Nov 2026</div></div>
+            </div>
+            <div style="padding:14px 18px">${tlRows}</div>
+          </div>
         </div>
 
         <!-- Reports -->
-        <div class="section">
-          <div class="section-head">
-            <div class="section-title">${v.label} Reports</div>
-            <button class="btn-primary">+ New Report</button>
-          </div>
-          <div style="overflow-x:auto">
-            <table class="report-table">
-              <thead><tr><th>Title</th><th>Stage</th><th>Priority</th><th>Author</th><th>Updated</th><th>Actions</th></tr></thead>
-              <tbody>${reportRows}</tbody>
-            </table>
+        <div id="sec-reports" style="display:none">
+          <div class="section">
+            <div class="section-head">
+              <div><div class="section-title">${esc(vert.label)} Reports</div><div class="section-desc">Deliverable tags show what has been uploaded against each report</div></div>
+              <button class="btn-primary">+ New Report</button>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="report-table">
+                <thead><tr><th>Title + Deliverables</th><th>Stage</th><th>Priority</th><th>Author</th><th>Updated</th><th>Actions</th></tr></thead>
+                <tbody>${reportRows}</tbody>
+              </table>
+            </div>
           </div>
         </div>
 
         <!-- Factsheets -->
-        <div class="section">
-          <div class="section-head"><div class="section-title">Published Factsheets — ${v.label}</div></div>
-          <div class="factsheet-grid">${fsCards}</div>
-        </div>
-
-        <!-- Data sources -->
-        <div class="section">
-          <div class="section-head"><div class="section-title">Data Sources — ${v.label}</div></div>
-          <div>${sourceRows}</div>
-        </div>
-
-        <!-- Upload zone -->
-        <div class="section">
-          <div class="section-head"><div class="section-title">Upload Research Model</div></div>
-          <div class="upload-zone">
-            <div class="upload-icon">📁</div>
-            <div class="upload-label">Drop your Excel, PowerPoint, or Word file here</div>
-            <div class="upload-hint">XLSX · PPTX · DOCX · Max 50 MB</div>
+        <div id="sec-factsheets" style="display:none">
+          <div class="section">
+            <div class="section-head"><div class="section-title">Published Factsheets — ${esc(vert.label)}</div></div>
+            <div class="fs-grid">${fsCards}</div>
           </div>
         </div>
 
-      </div>
-    </div>
-  </div>`;
+        <!-- Data Sources -->
+        <div id="sec-sources" style="display:none">
+          <div class="section">
+            <div class="section-head"><div class="section-title">Data Sources — ${esc(vert.label)}</div></div>
+            <div>${srcRows}</div>
+          </div>
+        </div>
+
+        <!-- Deliverables Upload Hub -->
+        <div id="sec-deliverables" style="display:none">
+          <div class="section">
+            <div class="section-head">
+              <div>
+                <div class="section-title">Deliverables Upload Hub</div>
+                <div class="section-desc">Four distinct deliverable types — each with its own upload form, metadata, and visibility controls</div>
+              </div>
+            </div>
+            <!-- 4 deliverable tabs -->
+            <div class="deliv-tabs">
+              <button class="dtab active" onclick="switchDelivTab('report',this)">
+                <span class="dtab-icon">📄</span><span class="dtab-label">Research Report</span><span class="dtab-hint">DOCX/PDF</span>
+              </button>
+              <button class="dtab" onclick="switchDelivTab('model',this)">
+                <span class="dtab-icon">📊</span><span class="dtab-label">Excel Model</span><span class="dtab-hint">XLSX</span>
+              </button>
+              <button class="dtab" onclick="switchDelivTab('deck',this)">
+                <span class="dtab-icon">🎯</span><span class="dtab-label">Client Deck</span><span class="dtab-hint">PPTX</span>
+              </button>
+              <button class="dtab" onclick="switchDelivTab('data',this)">
+                <span class="dtab-icon">🗃️</span><span class="dtab-label">Topline Data</span><span class="dtab-hint">CSV/JSON</span>
+              </button>
+            </div>
+            <div id="dp-report" class="deliv-panel show">${delivPanel_report(vert.uploadedFiles.report)}</div>
+            <div id="dp-model"  class="deliv-panel">${delivPanel_model(vert.uploadedFiles.model)}</div>
+            <div id="dp-deck"   class="deliv-panel">${delivPanel_deck(vert.uploadedFiles.deck)}</div>
+            <div id="dp-data"   class="deliv-panel">${delivPanel_data(vert, vert.uploadedFiles.data)}</div>
+          </div>
+        </div>
+
+        <!-- Topline Data view -->
+        <div id="sec-topline" style="display:none">
+          <div class="section">
+            <div class="section-head">
+              <div><div class="section-title">Published Topline Metrics</div><div class="section-desc">${esc(tl.geography)} — Powers front-end KPI cards, heatmaps, and comparison charts</div></div>
+            </div>
+            <div style="padding:16px 18px">
+              <div style="font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fog);margin-bottom:12px">Live metrics · As of Nov 2026 · Source: uploaded CSV</div>
+              ${tlRows}
+              <div style="margin-top:16px;padding:12px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2)">
+                <div style="font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Front-end usage of this data</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <span class="dtype-tag dt-data">KPI Cards</span>
+                  <span class="dtype-tag dt-data">Heatmap</span>
+                  <span class="dtype-tag dt-data">Trend Chart</span>
+                  <span class="dtype-tag dt-data">Comparison Table</span>
+                  <span class="dtype-tag dt-data">Geography Filter</span>
+                  <span class="dtype-tag dt-data">Period Selector</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /main-area -->
+  </div><!-- /workspace -->`;
 }
 
-// init
-renderWorkspace('epi');
+/* section nav */
+const SECTIONS = ['dashboard','reports','factsheets','sources','deliverables','topline'];
+const TITLES = {dashboard:'Dashboard',reports:'Reports',factsheets:'Factsheets',sources:'Data Sources',deliverables:'Deliverables Upload Hub',topline:'Topline Data'};
+function showSec(id, btn){
+  SECTIONS.forEach(s=>{
+    const el = document.getElementById('sec-'+s);
+    if(el) el.style.display = s===id ? 'block':'none';
+  });
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const pt = document.getElementById('pageTitle');
+  if(pt) pt.textContent = TITLES[id] || id;
+}
+window.showSec = showSec;
+
+/* init */
+const vert0 = V['epi'];
+document.documentElement.style.setProperty('--acc', vert0.acc);
+document.documentElement.style.setProperty('--acc-dim', `rgba(${vert0.accRgb},.12)`);
+document.documentElement.style.setProperty('--acc-glow', `rgba(${vert0.accRgb},.2)`);
+document.documentElement.style.setProperty('--acc-soft', `rgba(${vert0.accRgb},.08)`);
+renderWorkspace(vert0);
 </script>
 </body>
 </html>

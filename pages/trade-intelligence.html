@@ -138,12 +138,46 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
 .source-tier{font-family:var(--ff-mono);font-size:9px;color:var(--fog);margin-left:4px;padding:1px 5px;background:rgba(255,255,255,.04);border-radius:3px}
 .source-meta{font-size:11px;color:var(--fog);font-family:var(--ff-mono)}
 
-/* ── Upload area ── */
-.upload-zone{margin:16px;padding:28px;border:1.5px dashed var(--rule2);border-radius:var(--r2);text-align:center;cursor:pointer;transition:border-color .2s,background .2s}
-.upload-zone:hover{border-color:var(--acc-glow);background:var(--acc-soft)}
-.upload-icon{font-size:28px;margin-bottom:10px}
-.upload-label{font-size:13px;color:var(--fog);margin-bottom:4px}
-.upload-hint{font-family:var(--ff-mono);font-size:10px;color:var(--ghost);letter-spacing:.5px}
+/* ── Deliverable upload hub ── */
+.deliv-tabs{display:flex;gap:0;border-bottom:1px solid var(--rule)}
+.dtab{display:flex;align-items:center;gap:7px;padding:11px 18px;font-size:12px;color:var(--fog);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--ff-body);white-space:nowrap}
+.dtab:hover{color:var(--white)}
+.dtab.active{color:var(--white);border-bottom-color:var(--acc)}
+.dtab-hint{font-family:var(--ff-mono);font-size:9px;color:var(--ghost);margin-left:2px}
+.deliv-panel{display:none;padding:20px}
+.deliv-panel.show{display:block}
+.upzone{border:1.5px dashed var(--rule2);border-radius:var(--r2);padding:28px 20px;text-align:center;transition:border-color .2s,background .2s;cursor:pointer;position:relative}
+.upzone:hover{border-color:var(--acc-glow);background:var(--acc-soft)}
+.upzone-icon{font-size:30px;margin-bottom:10px}
+.upzone-title{font-size:13px;font-weight:500;color:var(--white);margin-bottom:4px}
+.upzone-sub{font-size:11.5px;color:var(--fog);margin-bottom:3px}
+.upzone-formats{font-family:var(--ff-mono);font-size:10px;color:var(--ghost);letter-spacing:.5px}
+.meta-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.mf-full{grid-column:1/-1}
+.mf-label{font-family:var(--ff-mono);font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--fog);margin-bottom:5px;display:block}
+.mf-input{width:100%;padding:8px 11px;background:var(--ink3);border:1.5px solid var(--rule2);border-radius:var(--r);font-size:12.5px;color:var(--white);font-family:var(--ff-body);outline:none}
+.mf-input:focus{border-color:var(--acc)}
+.mf-select{width:100%;padding:8px 11px;background:var(--ink3);border:1.5px solid var(--rule2);border-radius:var(--r);font-size:12.5px;color:var(--white);font-family:var(--ff-body);outline:none;cursor:pointer}
+.mf-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--rule)}
+.btn-cancel{padding:7px 14px;background:transparent;border:1px solid var(--rule2);border-radius:var(--r);font-size:12px;color:var(--fog);cursor:pointer;font-family:var(--ff-body)}
+.ufile{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2);margin-bottom:8px}
+.ufile-icon{font-size:20px;flex-shrink:0}
+.ufile-info{flex:1;min-width:0}
+.ufile-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.ufile-meta{font-size:10.5px;color:var(--fog);font-family:var(--ff-mono)}
+.ufile-status{font-family:var(--ff-mono);font-size:9px;padding:2px 8px;border-radius:10px}
+.us-attached{background:rgba(76,255,145,.08);color:#4cff91;border:1px solid rgba(76,255,145,.15)}
+.us-review{background:var(--acc-dim);color:var(--acc);border:1px solid var(--acc-glow)}
+.us-pending{background:rgba(200,169,110,.1);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
+.info-box{padding:12px 14px;background:var(--acc-soft);border:1px solid var(--acc-dim);border-radius:var(--r2);font-size:11.5px;color:var(--fog);line-height:1.6;margin-bottom:14px}
+.info-box strong{color:var(--white)}
+.tl-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--rule)}
+.tl-row:last-child{border-bottom:none}
+.tl-metric{font-size:12px;color:var(--fog)}
+.tl-value{font-family:var(--ff-mono);font-size:13px;font-weight:500;color:var(--white)}
+.tl-delta{font-family:var(--ff-mono);font-size:10px;padding:1px 6px;border-radius:10px;margin-left:6px}
+.tl-up{background:rgba(76,255,145,.08);color:#4cff91}
+.tl-down{background:rgba(232,93,74,.08);color:#e85d4a}
 
 /* ── Empty state ── */
 .empty{padding:36px;text-align:center;color:var(--fog);font-size:13px;font-style:italic}
@@ -196,7 +230,7 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
       <button class="nav-item" onclick="showSection('reports',this)"><span class="icon">📋</span>Reports</button>
       <button class="nav-item" onclick="showSection('factsheets',this)"><span class="icon">📄</span>Factsheets</button>
       <button class="nav-item" onclick="showSection('sources',this)"><span class="icon">🔗</span>Data Sources</button>
-      <button class="nav-item" id="navUpload" onclick="showSection('upload',this)" style="display:none"><span class="icon">⬆️</span>Upload Model</button>
+      <button class="nav-item" id="navUpload" onclick="showSection('deliverables',this)" style="display:none"><span class="icon">📦</span>Deliverables</button>
     </nav>
     <div class="sidebar-footer">
       <div class="user-row">
@@ -270,17 +304,170 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
         </div>
       </div>
 
-      <!-- Upload section -->
-      <div id="sec-upload" style="display:none">
+      <!-- Deliverables Upload Hub -->
+      <div id="sec-deliverables" style="display:none">
         <div class="section">
-          <div class="section-head"><div class="section-title">Upload Research Model</div></div>
-          <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
-            <div class="upload-icon">📁</div>
-            <div class="upload-label">Drop your Excel, PowerPoint, or Word file here</div>
-            <div class="upload-hint">XLSX · PPTX · DOCX · Max 50 MB</div>
-            <input type="file" id="fileInput" style="display:none" accept=".xlsx,.pptx,.docx" onchange="handleFileSelect(this)">
+          <div class="section-head">
+            <div>
+              <div class="section-title">Deliverables Upload Hub</div>
+              <div class="section-desc">Upload reports, models, decks, and topline data against each research report</div>
+            </div>
           </div>
-          <div id="uploadList" style="padding:0 16px 16px"></div>
+          <div class="deliv-tabs">
+            <button class="dtab active" id="dtab-report" onclick="switchDelivTab('report',this)">📄 <strong>Research Report</strong><span class="dtab-hint">DOCX/PDF</span></button>
+            <button class="dtab" id="dtab-model" onclick="switchDelivTab('model',this)">📊 <strong>Excel Model</strong><span class="dtab-hint">XLSX</span></button>
+            <button class="dtab" id="dtab-deck" onclick="switchDelivTab('deck',this)">🎯 <strong>Client Deck</strong><span class="dtab-hint">PPTX</span></button>
+            <button class="dtab" id="dtab-data" onclick="switchDelivTab('data',this)">🗃️ <strong>Topline Data</strong><span class="dtab-hint">CSV/JSON</span></button>
+          </div>
+          <div class="deliv-panel show" id="dp-report">
+            <div class="info-box"><strong>Research Report (DOCX / PDF)</strong> — The full written study. Executive summary, methodology, findings by geography/segment, implications, appendix. 20–80 pages. Uploaded by the analyst; visible to senior + head post-approval.</div>
+            <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:240px">
+                <div class="upzone" onclick="triggerUpload('report-file')">
+                  <div class="upzone-icon">📄</div>
+                  <div class="upzone-title">Drop Research Report here</div>
+                  <div class="upzone-sub">Full written study — exec summary to appendix</div>
+                  <div class="upzone-formats">DOCX · PDF · Max 100 MB</div>
+                  <input type="file" id="report-file" style="display:none" accept=".docx,.pdf" onchange="handleDelivUpload(this,'report')">
+                </div>
+              </div>
+              <div style="flex:1;min-width:240px">
+                <div class="meta-form">
+                  <div class="mf-full"><label class="mf-label">Link to Report</label><select class="mf-select" id="report-link"></select></div>
+                  <div><label class="mf-label">Version</label><input class="mf-input" id="report-version" placeholder="e.g. v1.0"></div>
+                  <div><label class="mf-label">Page Count</label><input class="mf-input" id="report-pages" placeholder="e.g. 48" type="number"></div>
+                  <div class="mf-full"><label class="mf-label">Reviewer Notes</label><input class="mf-input" id="report-notes" placeholder="Notes for senior/head…"></div>
+                  <div class="mf-full"><label class="mf-label">Visibility</label>
+                    <select class="mf-select" id="report-vis">
+                      <option value="internal">Internal only</option>
+                      <option value="summary">Summary visible to clients</option>
+                      <option value="full">Full report visible to clients</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mf-actions">
+                  <button class="btn-cancel" onclick="clearDelivForm('report')">Clear</button>
+                  <button class="btn-primary" onclick="submitDeliv('report')">Upload Report</button>
+                </div>
+              </div>
+            </div>
+            <div id="report-list" style="margin-top:4px"></div>
+          </div>
+          <div class="deliv-panel" id="dp-model">
+            <div class="info-box"><strong>Quantitative Model (XLSX)</strong> — The underlying Excel workbook from which all published numbers are derived. Structured sheets: assumptions, raw data, computed outputs, scenarios, audit trail. Numbers feed the topline data upload and front-end charts. Visible to senior + head only.</div>
+            <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:240px">
+                <div class="upzone" onclick="triggerUpload('model-file')">
+                  <div class="upzone-icon">📊</div>
+                  <div class="upzone-title">Drop Excel Model here</div>
+                  <div class="upzone-sub">Assumptions → data → outputs → scenarios</div>
+                  <div class="upzone-formats">XLSX · XLSM · Max 200 MB</div>
+                  <input type="file" id="model-file" style="display:none" accept=".xlsx,.xlsm" onchange="handleDelivUpload(this,'model')">
+                </div>
+              </div>
+              <div style="flex:1;min-width:240px">
+                <div class="meta-form">
+                  <div class="mf-full"><label class="mf-label">Link to Report</label><select class="mf-select" id="model-link"></select></div>
+                  <div><label class="mf-label">Model Version</label><input class="mf-input" id="model-version" placeholder="e.g. v2.0"></div>
+                  <div><label class="mf-label">Sheet Count</label><input class="mf-input" id="model-sheets" placeholder="e.g. 12" type="number"></div>
+                  <div class="mf-full"><label class="mf-label">Model Type</label>
+                    <select class="mf-select" id="model-type">
+                      <option>Market Sizing / Demand</option>
+                      <option>Financial Forecast</option>
+                      <option>Pricing Model</option>
+                      <option>Trade Flow Model</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div class="mf-full"><label class="mf-label">Data Sources Used</label><input class="mf-input" id="model-sources" placeholder="e.g. WHO, ICMR, Bloomberg…"></div>
+                </div>
+                <div class="mf-actions">
+                  <button class="btn-cancel" onclick="clearDelivForm('model')">Clear</button>
+                  <button class="btn-primary" onclick="submitDeliv('model')">Upload Model</button>
+                </div>
+              </div>
+            </div>
+            <div id="model-list" style="margin-top:4px"></div>
+          </div>
+          <div class="deliv-panel" id="dp-deck">
+            <div class="info-box"><strong>Client Deck (PPTX)</strong> — Go-to-meeting slide deck. Crisp, visual, executive-ready. McKinsey pyramid structure: headline insight per slide, supporting data below. 12–20 slides. Ready to present on the go — no editing needed post-approval.</div>
+            <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:240px">
+                <div class="upzone" onclick="triggerUpload('deck-file')">
+                  <div class="upzone-icon">🎯</div>
+                  <div class="upzone-title">Drop Client Deck here</div>
+                  <div class="upzone-sub">Presentation-ready — 12–20 slides, executive format</div>
+                  <div class="upzone-formats">PPTX · PDF · Max 100 MB</div>
+                  <input type="file" id="deck-file" style="display:none" accept=".pptx,.pdf" onchange="handleDelivUpload(this,'deck')">
+                </div>
+              </div>
+              <div style="flex:1;min-width:240px">
+                <div class="meta-form">
+                  <div class="mf-full"><label class="mf-label">Link to Report</label><select class="mf-select" id="deck-link"></select></div>
+                  <div><label class="mf-label">Slide Count</label><input class="mf-input" id="deck-slides" placeholder="e.g. 16" type="number"></div>
+                  <div><label class="mf-label">Deck Version</label><input class="mf-input" id="deck-version" placeholder="e.g. v1.0"></div>
+                  <div class="mf-full"><label class="mf-label">Audience</label>
+                    <select class="mf-select" id="deck-audience">
+                      <option>Client — C-Suite</option>
+                      <option>Client — Strategy Team</option>
+                      <option>Internal Review Only</option>
+                      <option>Board Presentation</option>
+                    </select>
+                  </div>
+                  <div class="mf-full"><label class="mf-label">Branding</label>
+                    <select class="mf-select" id="deck-brand">
+                      <option value="platform">Platform branded (default)</option>
+                      <option value="whitelabel">White-label (client)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mf-actions">
+                  <button class="btn-cancel" onclick="clearDelivForm('deck')">Clear</button>
+                  <button class="btn-primary" onclick="submitDeliv('deck')">Upload Deck</button>
+                </div>
+              </div>
+            </div>
+            <div id="deck-list" style="margin-top:4px"></div>
+          </div>
+          <div class="deliv-panel" id="dp-data">
+            <div class="info-box"><strong>Topline Data (CSV / JSON)</strong> — Structured key metrics extracted from the Excel model. These numbers directly power the front-end: KPI cards, heatmaps, trend charts, comparison tables visible to logged-in clients post-publication.</div>
+            <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:240px">
+                <div class="upzone" onclick="triggerUpload('data-file')">
+                  <div class="upzone-icon">🗃️</div>
+                  <div class="upzone-title">Drop Topline Data here</div>
+                  <div class="upzone-sub">Structured metrics — feeds KPI cards, heatmaps, charts</div>
+                  <div class="upzone-formats">CSV · JSON · Max 10 MB</div>
+                  <input type="file" id="data-file" style="display:none" accept=".csv,.json" onchange="handleDelivUpload(this,'data')">
+                </div>
+                <div style="margin-top:12px;padding:12px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2)">
+                  <div style="font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Expected CSV format</div>
+                  <pre style="font-family:var(--ff-mono);font-size:9.5px;color:var(--acc);line-height:1.6;overflow-x:auto;white-space:pre-wrap">metric,geography,period,value,unit,delta,dir
+Market Size (USD Mn),India,Q4 2026,4820,USD Mn,+28%,up
+CAGR 2024-2029,India,Q4 2026,14.2,%,,neutral
+Top Geography,India,Q4 2026,Maharashtra,text,,neutral</pre>
+                </div>
+              </div>
+              <div style="flex:1;min-width:240px">
+                <div class="meta-form">
+                  <div class="mf-full"><label class="mf-label">Link to Report</label><select class="mf-select" id="data-link"></select></div>
+                  <div><label class="mf-label">Reference Period</label><input class="mf-input" id="data-period" placeholder="e.g. Q4 2026"></div>
+                  <div><label class="mf-label">Geography</label><input class="mf-input" id="data-geo" placeholder="e.g. India + Key Markets"></div>
+                  <div class="mf-full"><label class="mf-label">Publish to Front-End</label>
+                    <select class="mf-select" id="data-publish">
+                      <option value="yes">Yes — publish on report approval</option>
+                      <option value="no">No — internal only</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mf-actions">
+                  <button class="btn-cancel" onclick="clearDelivForm('data')">Clear</button>
+                  <button class="btn-primary" onclick="submitDeliv('data')">Upload Data</button>
+                </div>
+              </div>
+            </div>
+            <div id="data-list" style="margin-top:4px"></div>
+          </div>
         </div>
       </div>
 
@@ -337,6 +524,7 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
   let supabase = null;
   if(SUPA_URL && SUPA_KEY && window.supabase){
     supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    window._supa = supabase;
   }
 
   const VERTICAL = 'trade';
@@ -390,6 +578,7 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
 
   async function loadAll(){
     await Promise.all([loadKPIs(), loadReports(), loadFactsheets(), loadSources(), loadActivity()]);
+    loadDeliverablesList();
   }
 
   /* ── KPIs ── */
@@ -418,6 +607,8 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
       }
       const { data, error } = await q;
       if(error) throw error;
+      window._reportsList = data || [];
+      populateReportDropdowns();
       renderReportTable(data || []);
     } catch(e){ document.getElementById('reportTable').innerHTML='<tr><td colspan="6" class="empty">Failed to load reports.</td></tr>'; }
   }
@@ -591,21 +782,98 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
     } catch(_){ document.getElementById('dashActivity').innerHTML='<div class="empty">Failed to load activity.</div>'; }
   }
 
-  /* ── File upload ── */
-  function handleFileSelect(input){
+  /* ── Deliverable upload hub ── */
+  const FILE_ICONS = {docx:'📄',pdf:'📄',xlsx:'📊',xlsm:'📊',pptx:'🎯',csv:'🗃️',json:'🗃️'};
+  function fileIcon(name){ const e=(name.split('.').pop()||'').toLowerCase(); return FILE_ICONS[e]||'📎'; }
+
+  function triggerUpload(id){ document.getElementById(id).click(); }
+  window.triggerUpload = triggerUpload;
+
+  function handleDelivUpload(input, type){
     const file = input.files[0];
     if(!file) return;
-    document.getElementById('uploadList').innerHTML=`
-      <div style="padding:12px;background:var(--ink3);border-radius:var(--r);font-size:12.5px;color:var(--fog)">
-        📎 ${esc(file.name)} · ${(file.size/1024/1024).toFixed(1)} MB · Ready to upload
-        <br><span style="font-size:11px;font-family:var(--ff-mono)">Upload functionality connects to /admin/upload endpoint</span>
+    const list = document.getElementById(type+'-list');
+    const existing = list.innerHTML;
+    list.innerHTML = existing + `
+      <div class="ufile">
+        <div class="ufile-icon">${fileIcon(file.name)}</div>
+        <div class="ufile-info">
+          <div class="ufile-name">${esc(file.name)}</div>
+          <div class="ufile-meta">${(file.size/1024/1024).toFixed(1)} MB · staged · connects to /api/upload/${type}</div>
+        </div>
+        <span class="ufile-status us-pending">STAGED</span>
       </div>`;
+    input.value='';
   }
-  window.handleFileSelect = handleFileSelect;
+  window.handleDelivUpload = handleDelivUpload;
+
+  function switchDelivTab(key){
+    document.querySelectorAll('.dtab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('dtab-'+key).classList.add('active');
+    document.querySelectorAll('.deliv-panel').forEach(p=>p.classList.remove('show'));
+    document.getElementById('dp-'+key).classList.add('show');
+  }
+  window.switchDelivTab = switchDelivTab;
+
+  function clearDelivForm(type){
+    ['version','pages','notes','slides','sheets','sources','period','geo'].forEach(f=>{
+      const el=document.getElementById(type+'-'+f); if(el) el.value='';
+    });
+  }
+  window.clearDelivForm = clearDelivForm;
+
+  function submitDeliv(type){
+    const listEl = document.getElementById(type+'-list');
+    const staged = listEl.querySelector('.us-pending');
+    if(!staged){ alert('Please select a file first.'); return; }
+    staged.className='ufile-status us-review';
+    staged.textContent='IN REVIEW';
+  }
+  window.submitDeliv = submitDeliv;
+
+  function populateReportDropdowns(){
+    const selects = ['report-link','model-link','deck-link','data-link'];
+    selects.forEach(id=>{
+      const el=document.getElementById(id); if(!el) return;
+      el.innerHTML='<option value="">— select report —</option>';
+      (window._reportsList||[]).forEach(r=>{
+        el.innerHTML+=`<option value="${r.id}">${esc(r.title)}</option>`;
+      });
+    });
+  }
+  window.populateReportDropdowns = populateReportDropdowns;
+
+  async function loadDeliverablesList(){
+    if(!window._supa) return;
+    try{
+      const {data} = await window._supa
+        .from('model_uploads')
+        .select('id,file_type,model_title,status,created_at')
+        .eq('vertical',VERTICAL)
+        .order('created_at',{ascending:false})
+        .limit(20);
+      if(!data) return;
+      ['report','model','deck','data'].forEach(type=>{
+        const rows = data.filter(r=>r.file_type===type);
+        const list = document.getElementById(type+'-list');
+        if(!list||!rows.length) return;
+        list.innerHTML = rows.map(r=>`
+          <div class="ufile">
+            <div class="ufile-icon">${fileIcon(r.file_type||'docx')}</div>
+            <div class="ufile-info">
+              <div class="ufile-name">${esc(r.model_title||'Untitled')}</div>
+              <div class="ufile-meta">${new Date(r.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}</div>
+            </div>
+            <span class="ufile-status us-${r.status==='approved'?'attached':r.status==='submitted'?'review':'pending'}">${(r.status||'draft').toUpperCase()}</span>
+          </div>`).join('');
+      });
+    }catch(_){}
+  }
+  window.loadDeliverablesList = loadDeliverablesList;
 
   /* ── Navigation ── */
-  const sections = ['dashboard','reports','factsheets','sources','upload'];
-  const titles = {dashboard:'Dashboard',reports:'Reports',factsheets:'Factsheets',sources:'Data Sources',upload:'Upload Model'};
+  const sections = ['dashboard','reports','factsheets','sources','deliverables'];
+  const titles = {dashboard:'Dashboard',reports:'Reports',factsheets:'Factsheets',sources:'Data Sources',deliverables:'Deliverables Upload Hub'};
   function showSection(id, btn){
     sections.forEach(s=>{ document.getElementById('sec-'+s).style.display=s===id?'flex':'none'; if(s===id) document.getElementById('sec-'+s).style.flexDirection='column';});
     document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
