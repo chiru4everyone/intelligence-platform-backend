@@ -595,7 +595,10 @@ select.inline-select{background:var(--ink4);border:1px solid var(--rule2);color:
       <div class="dash-title">Master Admin Console</div>
       <div class="dash-sub">INTELLIGENCE PLATFORM · SUPERUSER SESSION</div>
     </div>
-    <button class="logout-btn" onclick="logout()">Sign out</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a href="/workflow" target="_blank" style="padding:7px 14px;background:rgba(200,169,110,.12);border:1px solid rgba(200,169,110,.25);border-radius:6px;font-size:12px;color:#c8a96e;text-decoration:none;font-weight:500">📊 Workflow Dashboard</a>
+      <button class="logout-btn" onclick="logout()">Sign out</button>
+    </div>
   </div>
 
   <div class="stats-row">
@@ -929,3 +932,680 @@ async def master_dashboard(request: Request):
         "sessions_total":   len(sessions),
         "sessions_today":   len(sessions_today),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# APPROVAL WORKFLOW ENDPOINTS
+# Stage machine: draft → submitted → senior_review → senior_approved →
+#                head_review → approved → published  (or → rejected at any review)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+STAGE_TRANSITIONS = {
+    # (current_stage, action, actor_role) → new_stage
+    ("draft",           "submit",  "analyst"): "submitted",
+    ("draft",           "submit",  "senior"):  "submitted",
+    ("submitted",       "review",  "senior"):  "senior_review",
+    ("senior_review",   "approve", "senior"):  "senior_approved",
+    ("senior_review",   "reject",  "senior"):  "rejected",
+    ("senior_approved", "review",  "head"):    "head_review",
+    ("head_review",     "approve", "head"):    "approved",
+    ("head_review",     "reject",  "head"):    "rejected",
+    ("approved",        "publish", "head"):    "published",
+    # head can also submit directly
+    ("draft",           "submit",  "head"):    "senior_approved",
+}
+
+
+def _log_activity(supa, *, table_name, record_id, actor, action,
+                  field_name=None, old_value=None, new_value=None,
+                  note=None, vertical=None):
+    """Write one row to activity_log (non-fatal if it fails)."""
+    try:
+        supa.table("activity_log").insert({
+            "table_name": table_name,
+            "record_id":  str(record_id),
+            "actor_id":   actor.get("id"),
+            "actor_name": actor.get("full_name") or actor.get("email"),
+            "actor_role": actor.get("role"),
+            "action":     action,
+            "field_name": field_name,
+            "old_value":  str(old_value) if old_value is not None else None,
+            "new_value":  str(new_value) if new_value is not None else None,
+            "note":       note,
+            "vertical":   vertical,
+        }).execute()
+    except Exception:
+        pass
+
+
+@app.post("/api/reports/{report_id}/workflow", tags=["workflow"])
+async def workflow_action(request: Request, report_id: str):
+    """
+    Drive a report through the approval pipeline.
+
+    Body: { "action": "submit|review|approve|reject|publish", "note": "optional" }
+
+    Rules enforced:
+    - Analysts can only submit their own draft reports
+    - Senior analysts approve/reject submitted reports in their vertical
+    - Head of Research approves/rejects senior-approved reports + publishes
+    - Rejected reports go back to 'rejected' stage with a note
+    """
+    profile = await _resolve_profile(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    action = body.get("action", "").strip()
+    note   = body.get("note", "").strip()
+
+    if not action:
+        raise HTTPException(status_code=400, detail="action is required")
+
+    # Fetch the report
+    resp = supa.table("reports")\
+        .select("id, title, stage, vertical, author_id, author_name, assigned_senior_id")\
+        .eq("id", report_id).single().execute()
+
+    if not resp.data:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    report = resp.data
+    role   = profile["role"]
+    uid    = profile.get("id") or ""
+
+    # Vertical access check
+    if profile["vertical"] != "all" and profile["vertical"] != report["vertical"]:
+        raise HTTPException(status_code=403, detail="You do not have access to this vertical")
+
+    # Analyst can only submit their own reports
+    if role == "analyst" and action == "submit" and report.get("author_id") != uid:
+        raise HTTPException(status_code=403, detail="You can only submit your own reports")
+
+    current_stage = report["stage"]
+    new_stage = STAGE_TRANSITIONS.get((current_stage, action, role))
+
+    if new_stage is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Action '{action}' is not allowed for role '{role}' on stage '{current_stage}'"
+        )
+
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+
+    update_payload = {
+        "stage":           new_stage,
+        "stage_entered_at": now,
+    }
+    if action == "submit":
+        update_payload["submitted_at"] = now
+    if action in ("reject",):
+        update_payload["rejection_note"] = note
+        update_payload["rejected_by"]    = uid
+        update_payload["rejected_at"]    = now
+    if action == "review" and role == "senior":
+        update_payload["assigned_senior_id"] = uid
+
+    supa.table("reports").update(update_payload).eq("id", report_id).execute()
+
+    # Workflow event
+    try:
+        supa.table("workflow_events").insert({
+            "report_id":      report_id,
+            "from_stage":     current_stage,
+            "to_stage":       new_stage,
+            "actor_id":       uid,
+            "actor_name":     profile.get("full_name") or profile.get("email"),
+            "note":           note or None,
+            "is_rejection":   action == "reject",
+            "rejection_note": note if action == "reject" else None,
+        }).execute()
+    except Exception:
+        pass
+
+    # Activity log
+    _log_activity(supa,
+        table_name="reports",
+        record_id=report_id,
+        actor=profile,
+        action=action,
+        field_name="stage",
+        old_value=current_stage,
+        new_value=new_stage,
+        note=note or None,
+        vertical=report["vertical"],
+    )
+
+    return {
+        "report_id":   report_id,
+        "action":      action,
+        "from_stage":  current_stage,
+        "to_stage":    new_stage,
+        "actor_role":  role,
+        "note":        note or None,
+    }
+
+
+@app.get("/api/reports", tags=["workflow"])
+async def list_reports(request: Request, vertical: str = None, stage: str = None):
+    """List reports scoped to the authenticated user's vertical."""
+    profile = await _resolve_profile(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    q = supa.table("reports").select(
+        "id, title, abstract, vertical, stage, priority, author_name, "
+        "due_date, stage_entered_at, submitted_at, rejection_note, "
+        "created_at, updated_at, assigned_senior_id, version"
+    )
+
+    # Vertical scoping
+    user_vertical = profile["vertical"]
+    if user_vertical != "all":
+        q = q.eq("vertical", user_vertical)
+    elif vertical:
+        q = q.eq("vertical", vertical)
+
+    if stage:
+        q = q.eq("stage", stage)
+
+    q = q.order("updated_at", desc=True)
+    resp = q.execute()
+    return {"reports": resp.data or []}
+
+
+@app.get("/api/reports/{report_id}/history", tags=["workflow"])
+async def report_history(request: Request, report_id: str):
+    """Full workflow history for one report."""
+    profile = await _resolve_profile(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    resp = supa.table("workflow_events")\
+        .select("from_stage, to_stage, actor_name, actor_id, note, is_rejection, created_at")\
+        .eq("report_id", report_id)\
+        .order("created_at", desc=False)\
+        .execute()
+    return {"history": resp.data or []}
+
+
+# ── /api/activity ─────────────────────────────────────────────────────────────
+@app.get("/api/activity", tags=["workflow"])
+async def activity_feed(request: Request, limit: int = 50):
+    """Recent activity log — scoped to user's vertical."""
+    profile = await _resolve_profile(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    q = supa.table("activity_log").select(
+        "id, table_name, action, field_name, old_value, new_value, "
+        "actor_name, actor_role, note, vertical, created_at"
+    )
+    if profile["vertical"] != "all":
+        q = q.eq("vertical", profile["vertical"])
+    q = q.order("created_at", desc=True).limit(min(limit, 200))
+    resp = q.execute()
+    return {"activity": resp.data or []}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MASTER GANTT DASHBOARD PAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_GANTT_HTML = r"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Workflow Dashboard — Master</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#06080d;--ink2:#0c0f16;--ink3:#11151e;--ink4:#171c28;--rule:rgba(255,255,255,.06);--rule2:rgba(255,255,255,.1);--white:#eef0f5;--fog:#7a8599;--ghost:#3d4a60;--teal:#2ec4b6;--gold:#c8a96e;--violet:#9b72e8;--sapph:#4a7fe8;--agri:#4caf78;--coral:#e85d4a;--r:6px;color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--ink);color:var(--white);-webkit-font-smoothing:antialiased}
+.shell{display:grid;grid-template-rows:56px 1fr;min-height:100vh}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:var(--ink2);border-bottom:1px solid var(--rule2);position:sticky;top:0;z-index:10}
+.topbar-left{display:flex;align-items:center;gap:16px}
+.logo{font-size:14px;font-weight:600;color:var(--white)}
+.logo span{color:var(--gold);font-family:'JetBrains Mono',monospace;font-size:11px;margin-left:8px;letter-spacing:.5px}
+.nav-link{font-size:12px;color:var(--fog);text-decoration:none;padding:6px 10px;border-radius:4px;transition:color .15s,background .15s}
+.nav-link:hover,.nav-link.active{color:var(--white);background:rgba(255,255,255,.05)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.filter-bar{display:flex;align-items:center;gap:8px}
+.filter-select{background:var(--ink3);border:1px solid var(--rule2);color:var(--white);border-radius:var(--r);padding:5px 10px;font-size:12px;font-family:'Inter',sans-serif;cursor:pointer}
+.refresh-btn{padding:6px 14px;background:transparent;border:1px solid var(--rule2);border-radius:var(--r);font-size:12px;color:var(--fog);cursor:pointer;transition:color .15s}
+.refresh-btn:hover{color:var(--white)}
+.main{padding:24px 28px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
+
+/* stat row */
+.stats-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.stat{padding:14px 16px;background:var(--ink2);border:1px solid var(--rule2);border-radius:8px}
+.stat-val{font-size:22px;font-weight:600;margin-bottom:3px}
+.stat-label{font-size:10px;color:var(--fog);font-family:'JetBrains Mono',monospace;letter-spacing:.5px}
+.stat-val.on-track{color:var(--teal)}
+.stat-val.at-risk{color:var(--gold)}
+.stat-val.overdue{color:var(--coral)}
+
+/* pipeline swimlanes */
+.swimlane-wrap{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule2);border-radius:8px;overflow:hidden}
+.lane{background:var(--ink2);min-height:300px}
+.lane-head{padding:10px 12px;border-bottom:1px solid var(--rule);background:var(--ink3);display:flex;flex-direction:column;gap:3px}
+.lane-title{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fog)}
+.lane-count{font-size:18px;font-weight:600;color:var(--white)}
+.lane-body{padding:8px;display:flex;flex-direction:column;gap:6px}
+.report-card{padding:10px 10px 8px;background:var(--ink3);border:1px solid var(--rule2);border-radius:6px;cursor:pointer;transition:border-color .15s,background .15s;position:relative}
+.report-card:hover{background:var(--ink4);border-color:var(--rule2)}
+.report-card.on-track{border-left:3px solid var(--teal)}
+.report-card.at-risk{border-left:3px solid var(--gold)}
+.report-card.overdue{border-left:3px solid var(--coral)}
+.rc-title{font-size:11.5px;font-weight:500;color:var(--white);line-height:1.4;margin-bottom:5px}
+.rc-meta{font-size:10px;color:var(--fog);display:flex;flex-direction:column;gap:2px}
+.rc-vertical{display:inline-block;padding:1px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:9px;margin-bottom:4px}
+.v-epi{background:rgba(46,196,182,.12);color:#2ec4b6}
+.v-agri{background:rgba(76,175,120,.12);color:#4caf78}
+.v-trade{background:rgba(74,127,232,.12);color:#4a7fe8}
+.v-markets{background:rgba(200,169,110,.12);color:#c8a96e}
+.v-packaging{background:rgba(232,93,74,.12);color:#e85d4a}
+.v-startups{background:rgba(155,114,232,.12);color:#9b72e8}
+.days-badge{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--fog)}
+.days-badge.warn{color:var(--gold)}
+.days-badge.danger{color:var(--coral)}
+
+/* Gantt timeline */
+.gantt-section{background:var(--ink2);border:1px solid var(--rule2);border-radius:8px;overflow:hidden}
+.section-head{padding:14px 20px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between}
+.section-title{font-size:13px;font-weight:600;color:var(--white)}
+.gantt-wrap{overflow-x:auto;padding:0}
+.gantt-table{width:100%;border-collapse:collapse;min-width:900px}
+.gantt-table th{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fog);padding:10px 14px;text-align:left;border-bottom:1px solid var(--rule);white-space:nowrap;position:sticky;top:0;background:var(--ink3)}
+.gantt-table td{padding:10px 14px;border-bottom:1px solid var(--rule);font-size:12px;vertical-align:middle}
+.gantt-table tr:last-child td{border-bottom:none}
+.gantt-table tr:hover td{background:rgba(255,255,255,.018)}
+.progress-cell{min-width:180px}
+.progress-track{height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;position:relative}
+.progress-bar{height:100%;border-radius:3px;transition:width .3s}
+.bar-draft{background:var(--ghost)}
+.bar-submitted{background:var(--sapph)}
+.bar-senior_review{background:#5a9af0}
+.bar-senior_approved{background:var(--teal)}
+.bar-head_review{background:var(--gold)}
+.bar-approved{background:#8ed44a}
+.bar-published{background:#4cff91}
+.bar-rejected{background:var(--coral)}
+.stage-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.5px;text-transform:uppercase;color:var(--fog);margin-top:4px}
+.priority-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;flex-shrink:0}
+.p-high{background:var(--coral)}
+.p-med{background:var(--gold)}
+.p-low{background:var(--ghost)}
+
+/* activity feed */
+.activity-section{background:var(--ink2);border:1px solid var(--rule2);border-radius:8px;overflow:hidden}
+.activity-list{padding:0;max-height:320px;overflow-y:auto}
+.activity-row{display:flex;align-items:flex-start;gap:12px;padding:11px 20px;border-bottom:1px solid var(--rule)}
+.activity-row:last-child{border-bottom:none}
+.activity-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px}
+.icon-submit{background:rgba(74,127,232,.15)}
+.icon-approve{background:rgba(46,196,182,.15)}
+.icon-reject{background:rgba(232,93,74,.15)}
+.icon-publish{background:rgba(76,175,120,.15)}
+.icon-update{background:rgba(155,114,232,.15)}
+.activity-body{flex:1;min-width:0}
+.activity-desc{font-size:12px;color:var(--white);line-height:1.5}
+.activity-desc strong{font-weight:600}
+.activity-meta{font-size:10.5px;color:var(--fog);margin-top:2px;font-family:'JetBrains Mono',monospace}
+
+/* modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--ink2);border:1px solid var(--rule2);border-radius:12px;width:100%;max-width:520px;overflow:hidden}
+.modal-head{padding:18px 24px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:14px;font-weight:600;color:var(--white)}
+.modal-close{background:none;border:none;color:var(--fog);font-size:18px;cursor:pointer;padding:2px 6px}
+.modal-body{padding:20px 24px;display:flex;flex-direction:column;gap:12px}
+.history-row{display:flex;gap:12px;align-items:flex-start}
+.history-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0;margin-top:5px}
+.history-dot.reject{background:var(--coral)}
+.history-content{flex:1}
+.history-stage{font-size:12px;font-weight:500;color:var(--white)}
+.history-meta{font-size:11px;color:var(--fog);margin-top:2px}
+.empty-msg{text-align:center;padding:28px;color:var(--fog);font-style:italic;font-size:13px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink4);border:1px solid var(--rule2);border-radius:20px;padding:9px 18px;font-size:12px;color:var(--white);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:999}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:900px){.stats-row{grid-template-columns:repeat(3,1fr)}.swimlane-wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">Intelligence Platform <span>MASTER WORKFLOW</span></div>
+      <a href="/master" class="nav-link">← Console</a>
+    </div>
+    <div class="topbar-right">
+      <div class="filter-bar">
+        <select class="filter-select" id="filterVertical" onchange="applyFilters()">
+          <option value="">All verticals</option>
+          <option value="epi">Epidemiology</option>
+          <option value="agri">Agriculture</option>
+          <option value="trade">Trade</option>
+          <option value="markets">Markets</option>
+          <option value="packaging">Packaging</option>
+          <option value="startups">Startups</option>
+        </select>
+        <select class="filter-select" id="filterPriority" onchange="applyFilters()">
+          <option value="">All priorities</option>
+          <option value="high">High</option>
+          <option value="med">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Stat cards -->
+    <div class="stats-row">
+      <div class="stat"><div class="stat-val" id="sTotal">—</div><div class="stat-label">Total reports</div></div>
+      <div class="stat"><div class="stat-val" id="sDraft">—</div><div class="stat-label">In draft</div></div>
+      <div class="stat"><div class="stat-val" id="sReview">—</div><div class="stat-label">In review</div></div>
+      <div class="stat on-track"><div class="stat-val on-track" id="sPublished">—</div><div class="stat-label">Published</div></div>
+      <div class="stat"><div class="stat-val at-risk" id="sAtRisk">—</div><div class="stat-label">At risk</div></div>
+      <div class="stat"><div class="stat-val overdue" id="sOverdue">—</div><div class="stat-label">Overdue / stuck</div></div>
+    </div>
+
+    <!-- Swimlane pipeline -->
+    <div class="swimlane-wrap" id="swimlanes">
+      <!-- filled by JS -->
+    </div>
+
+    <!-- Gantt table -->
+    <div class="gantt-section">
+      <div class="section-head">
+        <div class="section-title">Report Pipeline — Detail View</div>
+      </div>
+      <div class="gantt-wrap">
+        <table class="gantt-table">
+          <thead><tr>
+            <th>Report</th><th>Vertical</th><th>Author</th>
+            <th>Priority</th><th>Stage progress</th><th>Days in stage</th><th>Due date</th>
+          </tr></thead>
+          <tbody id="ganttBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Activity feed -->
+    <div class="activity-section">
+      <div class="section-head">
+        <div class="section-title">Activity Log</div>
+      </div>
+      <div class="activity-list" id="activityList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Report detail modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="modalTitle">Report history</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const MT = sessionStorage.getItem('_mt') || '';
+  if(!MT){ window.location.href='/master'; return; }
+
+  const STAGES = ['draft','submitted','senior_review','senior_approved','head_review','approved','published','rejected'];
+  const STAGE_LABELS = {
+    draft:'Draft', submitted:'Submitted', senior_review:'Senior Review',
+    senior_approved:'Sr. Approved', head_review:'Head Review',
+    approved:'Approved', published:'Published', rejected:'Rejected'
+  };
+  const STAGE_PCT = {
+    draft:5, submitted:20, senior_review:35, senior_approved:55,
+    head_review:72, approved:88, published:100, rejected:0
+  };
+  const V_CLASS = {epi:'v-epi',agri:'v-agri',trade:'v-trade',markets:'v-markets',packaging:'v-packaging',startups:'v-startups'};
+
+  let allReports = [], allActivity = [];
+
+  async function apiFetch(path){
+    const r = await fetch(path, {headers:{'Authorization':'Bearer '+MT}});
+    if(r.status===401){ window.location.href='/master'; throw new Error('unauth'); }
+    return r.json();
+  }
+
+  async function loadAll(){
+    try {
+      const [rr, aa] = await Promise.all([
+        apiFetch('/api/master/reports'),
+        apiFetch('/api/master/activity')
+      ]);
+      allReports   = rr.reports   || [];
+      allActivity  = aa.activity  || [];
+      applyFilters();
+      renderActivity(allActivity);
+    } catch(e){ if(e.message!=='unauth') showToast('Failed to load data'); }
+  }
+
+  function applyFilters(){
+    const v = document.getElementById('filterVertical').value;
+    const p = document.getElementById('filterPriority').value;
+    let reports = allReports;
+    if(v) reports = reports.filter(r=>r.vertical===v);
+    if(p) reports = reports.filter(r=>r.priority===p);
+    renderStats(reports);
+    renderSwimlanes(reports);
+    renderGantt(reports);
+  }
+
+  function daysInStage(r){
+    if(!r.stage_entered_at) return 0;
+    return Math.floor((Date.now()-new Date(r.stage_entered_at))/(1000*60*60*24));
+  }
+
+  function statusClass(r){
+    const days = daysInStage(r);
+    if(r.stage==='rejected') return 'overdue';
+    if(r.due_date && new Date(r.due_date)<new Date()) return 'overdue';
+    if(days>5) return 'at-risk';
+    return 'on-track';
+  }
+
+  function renderStats(reports){
+    const inReview = ['submitted','senior_review','senior_approved','head_review','approved'];
+    document.getElementById('sTotal').textContent     = reports.length;
+    document.getElementById('sDraft').textContent     = reports.filter(r=>r.stage==='draft').length;
+    document.getElementById('sReview').textContent    = reports.filter(r=>inReview.includes(r.stage)).length;
+    document.getElementById('sPublished').textContent = reports.filter(r=>r.stage==='published').length;
+    document.getElementById('sAtRisk').textContent    = reports.filter(r=>statusClass(r)==='at-risk').length;
+    document.getElementById('sOverdue').textContent   = reports.filter(r=>statusClass(r)==='overdue').length;
+  }
+
+  function renderSwimlanes(reports){
+    const lanes = ['draft','submitted','senior_review','senior_approved','head_review','approved','published'];
+    document.getElementById('swimlanes').innerHTML = lanes.map(stage=>{
+      const cards = reports.filter(r=>r.stage===stage);
+      return `<div class="lane">
+        <div class="lane-head"><div class="lane-title">${STAGE_LABELS[stage]}</div><div class="lane-count">${cards.length}</div></div>
+        <div class="lane-body">${cards.length ? cards.map(r=>{
+          const sc = statusClass(r), days=daysInStage(r);
+          return `<div class="report-card ${sc}" onclick="openModal('${r.id}','${esc(r.title)}')">
+            <span class="rc-vertical ${V_CLASS[r.vertical]||''}">${r.vertical}</span>
+            <div class="rc-title">${esc(r.title)}</div>
+            <div class="rc-meta">
+              <span>${r.author_name||'Unknown'}</span>
+              <span class="days-badge ${days>5?'warn':''} ${days>10?'danger':''}">${days}d in stage</span>
+            </div>
+          </div>`;}).join('') : '<div style="padding:12px;font-size:11px;color:#3d4a60;text-align:center">Empty</div>'}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderGantt(reports){
+    const sorted = [...reports].sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at));
+    document.getElementById('ganttBody').innerHTML = sorted.length ? sorted.map(r=>{
+      const days=daysInStage(r), sc=statusClass(r), pct=STAGE_PCT[r.stage]||0;
+      const due = r.due_date ? new Date(r.due_date).toLocaleDateString('en-IN') : '—';
+      const daysClass = days>10?'danger':days>5?'warn':'';
+      return `<tr>
+        <td style="max-width:200px"><div style="font-weight:500;font-size:12.5px">${esc(r.title)}</div></td>
+        <td><span class="rc-vertical ${V_CLASS[r.vertical]||''}">${r.vertical}</span></td>
+        <td style="font-size:11.5px;color:#7a8599">${r.author_name||'—'}</td>
+        <td><span class="priority-dot p-${r.priority||'med'}"></span>${r.priority||'med'}</td>
+        <td class="progress-cell">
+          <div class="progress-track"><div class="progress-bar bar-${r.stage}" style="width:${pct}%"></div></div>
+          <div class="stage-label">${STAGE_LABELS[r.stage]||r.stage}</div>
+        </td>
+        <td><span class="days-badge ${daysClass}">${days}d</span></td>
+        <td style="font-size:11px;font-family:monospace">${due}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7" class="empty-msg">No reports found.</td></tr>';
+  }
+
+  function renderActivity(activity){
+    const icons = {submit:'📤',approve:'✅',reject:'❌',publish:'🚀',update:'✏️',create:'➕',delete:'🗑️'};
+    document.getElementById('activityList').innerHTML = activity.length ? activity.slice(0,50).map(a=>{
+      const when = a.created_at ? new Date(a.created_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:true}) : '';
+      let desc = `<strong>${a.actor_name||'Someone'}</strong> ${a.action}d`;
+      if(a.field_name) desc += ` <em>${a.field_name}</em>`;
+      if(a.old_value && a.new_value) desc += ` from <code style="font-family:monospace;font-size:10.5px;color:#9b72e8">${esc(a.old_value)}</code> → <code style="font-family:monospace;font-size:10.5px;color:#2ec4b6">${esc(a.new_value)}</code>`;
+      if(a.note) desc += ` <span style="color:#7a8599">— "${esc(a.note)}"</span>`;
+      return `<div class="activity-row">
+        <div class="activity-icon icon-${a.action}">${icons[a.action]||'•'}</div>
+        <div class="activity-body">
+          <div class="activity-desc">${desc}</div>
+          <div class="activity-meta">${when}${a.vertical?' · '+a.vertical:''}</div>
+        </div>
+      </div>`;
+    }).join('') : '<div class="empty-msg">No activity yet.</div>';
+  }
+
+  async function openModal(id, title){
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBody').innerHTML = '<div class="empty-msg">Loading…</div>';
+    document.getElementById('modalOverlay').classList.add('open');
+    try {
+      const data = await apiFetch('/api/reports/'+id+'/history');
+      const h = data.history||[];
+      document.getElementById('modalBody').innerHTML = h.length ? h.map(e=>`
+        <div class="history-row">
+          <div class="history-dot ${e.is_rejection?'reject':''}"></div>
+          <div class="history-content">
+            <div class="history-stage">${STAGE_LABELS[e.from_stage]||e.from_stage} → ${STAGE_LABELS[e.to_stage]||e.to_stage}</div>
+            <div class="history-meta">${e.actor_name||'Unknown'} · ${e.created_at?new Date(e.created_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:true}):''}</div>
+            ${e.note?`<div style="font-size:11px;color:#c8a96e;margin-top:3px">"${esc(e.note)}"</div>`:''}
+          </div>
+        </div>`).join('') : '<div class="empty-msg">No workflow events yet.</div>';
+    } catch(_){ document.getElementById('modalBody').innerHTML='<div class="empty-msg">Failed to load history.</div>'; }
+  }
+  window.openModal=openModal;
+
+  function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
+  window.closeModal=closeModal;
+
+  function esc(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+  let _tt;
+  function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2800); }
+
+  loadAll();
+  setInterval(loadAll, 60000); // auto-refresh every minute
+}());
+</script>
+</body>
+</html>"""
+
+
+# ── Master reports + activity endpoints (service-role reads) ──────────────────
+@app.get("/api/master/reports", tags=["master"])
+async def master_reports(request: Request, vertical: str = None, stage: str = None):
+    """All reports across all verticals — master only."""
+    _require_master(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    q = supa.table("reports").select(
+        "id, title, vertical, stage, priority, author_name, author_id, "
+        "due_date, stage_entered_at, submitted_at, rejection_note, "
+        "created_at, updated_at, version"
+    )
+    if vertical:
+        q = q.eq("vertical", vertical)
+    if stage:
+        q = q.eq("stage", stage)
+    q = q.order("updated_at", desc=True)
+    resp = q.execute()
+    return {"reports": resp.data or []}
+
+
+@app.get("/api/master/activity", tags=["master"])
+async def master_activity(request: Request, limit: int = 100):
+    """Full activity log across all verticals — master only."""
+    _require_master(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    resp = supa.table("activity_log")\
+        .select("id, table_name, action, field_name, old_value, new_value, actor_name, actor_role, note, vertical, created_at")\
+        .order("created_at", desc=True)\
+        .limit(min(limit, 500))\
+        .execute()
+    return {"activity": resp.data or []}
+
+
+@app.patch("/api/master/reports/{report_id}", tags=["master"])
+async def master_update_report(request: Request, report_id: str):
+    """Edit report fields — master only."""
+    _require_master(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    allowed = {"title", "abstract", "stage", "priority", "due_date", "version", "author_name"}
+    update = {k: v for k, v in body.items() if k in allowed}
+    if not update:
+        raise HTTPException(status_code=400, detail="No valid fields")
+    if "stage" in update:
+        update["stage_entered_at"] = __import__("datetime").datetime.utcnow().isoformat()
+    supa.table("reports").update(update).eq("id", report_id).execute()
+    return {"status": "updated", "report_id": report_id, "changes": update}
+
+
+@app.delete("/api/master/reports/{report_id}", tags=["master"])
+async def master_delete_report(request: Request, report_id: str):
+    """Hard-delete a report — master only."""
+    _require_master(request)
+    supa = _get_supa()
+    if not supa:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    supa.table("reports").delete().eq("id", report_id).execute()
+    return {"status": "deleted", "report_id": report_id}
+
+
+# ── /workflow — Gantt dashboard page ─────────────────────────────────────────
+@app.get("/workflow", response_class=HTMLResponse, include_in_schema=False)
+async def workflow_page():
+    """Master Gantt workflow dashboard — requires master session in sessionStorage."""
+    return HTMLResponse(content=_GANTT_HTML)
