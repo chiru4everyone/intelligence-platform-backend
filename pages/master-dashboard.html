@@ -18,7 +18,7 @@ window.__SUPA_KEY__ = '{SUPA_KEY}';
   --white:#f0f2f7;--fog:#8a95a8;--ghost:#4a5568;
   --teal:#2ec4b6;--gold:#c8a96e;--coral:#e85d4a;--violet:#9b72e8;
   --green:#4cff91;--sapph:#4a7fe8;
-  --epi:#2ec4b6;--agri:#4caf78;--trade:#4a7fe8;
+  --epi:#2ec4b6;--agri:#4caf78;
   --markets:#c8a96e;--packaging:#9b72e8;--startups:#e85d4a;--pharma:#d47ccc;
   --ff-serif:'DM Serif Display',Georgia,serif;
   --ff-body:'Inter',system-ui,sans-serif;
@@ -365,7 +365,7 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
           <option value="">Select…</option>
           <option value="epi">Epidemiology</option>
           <option value="agri">Agriculture</option>
-          <option value="trade">Trade</option>
+
           <option value="markets">Markets</option>
           <option value="packaging">Packaging</option>
           <option value="startups">Startups</option>
@@ -472,12 +472,12 @@ function daysSince(dateStr){
 }
 
 const VERTICAL_COLOR = {
-  epi:'var(--epi)', agri:'var(--agri)', trade:'var(--trade)',
+  epi:'var(--epi)', agri:'var(--agri)',
   markets:'var(--markets)', packaging:'var(--packaging)', startups:'var(--startups)',
   pharma:'var(--pharma)'
 };
 const VERTICAL_LABEL = {
-  epi:'Epidemiology', agri:'Agriculture', trade:'Trade',
+  epi:'Epidemiology', agri:'Agriculture',
   markets:'Markets', packaging:'Packaging', startups:'Startups',
   pharma:'Pharma Intelligence'
 };
@@ -637,7 +637,7 @@ function rrCard(r){
 
 // ── Verticals health ──────────────────────────────────────────────────────────
 function renderVerticals(rows){
-  const VERTICALS = ['epi','agri','trade','markets','packaging','startups','pharma'];
+  const VERTICALS = ['epi','agri','markets','packaging','startups','pharma'];
   const cards = VERTICALS.map(v => {
     const vrows = rows.filter(r=>r.vertical===v);
     const active = vrows.filter(r=>['approved','in_progress','review'].includes(r.status)).length;

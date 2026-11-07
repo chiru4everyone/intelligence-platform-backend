@@ -129,12 +129,12 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
     <div class="brand-hero">
       <div class="hero-eyebrow">Analyst Workspace</div>
       <h1 class="hero-headline">From raw signal<br>to <em>decisive</em><br>intelligence.</h1>
-      <p class="hero-desc">Your research environment spanning Epidemiology, Agriculture, Trade, Packaging, Markets, and Startup Ecosystems — India-first, globally benchmarked.</p>
+      <p class="hero-desc">Your research environment spanning Epidemiology, Agriculture, Pharma Intelligence, Packaging, Markets, and Startup Ecosystems — India-first, globally benchmarked.</p>
     </div>
     <div class="domain-row">
       <div class="domain-chip"><span class="dot" style="background:#2ec4b6"></span>Epidemiology</div>
       <div class="domain-chip"><span class="dot" style="background:#4caf78"></span>Agriculture</div>
-      <div class="domain-chip"><span class="dot" style="background:#4a7fe8"></span>Trade</div>
+      <div class="domain-chip"><span class="dot" style="background:#d47ccc"></span>Pharma</div>
       <div class="domain-chip"><span class="dot" style="background:#c8a96e"></span>Markets</div>
       <div class="domain-chip"><span class="dot" style="background:#9b72e8"></span>Startups</div>
       <div class="domain-chip"><span class="dot" style="background:#e85d4a"></span>Packaging</div>
@@ -259,7 +259,7 @@ html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var
               const portals = {
                 epi:       '/epi-intelligence/',
                 agri:      '/agri-intelligence/',
-                trade:     '/trade-intelligence/',
+                pharma:    '/pharma-intelligence/',
                 markets:   '/markets-intelligence/',
                 packaging: '/packaging-intelligence/',
                 startups:  '/startup-intelligence/',
@@ -307,7 +307,6 @@ def _load_page(filename: str) -> str:
 
 _EPI_HTML        = _load_page("epi-intelligence.html")
 _AGRI_HTML       = _load_page("agri-intelligence.html")
-_TRADE_HTML      = _load_page("trade-intelligence.html")
 _MARKETS_HTML    = _load_page("markets-intelligence.html")
 _PACKAGING_HTML  = _load_page("packaging-intelligence.html")
 _STARTUPS_HTML   = _load_page("startup-intelligence.html")
@@ -403,7 +402,7 @@ PERMISSIONS = {
 PORTAL_MAP = {
     "epi":       "/epi-intelligence/",
     "agri":      "/agri-intelligence/",
-    "trade":     "/trade-intelligence/",
+    "pharma":    "/pharma-intelligence/",
     "markets":   "/markets-intelligence/",
     "packaging": "/packaging-intelligence/",
     "startups":  "/startup-intelligence/",
@@ -727,7 +726,7 @@ select.inline-select{background:var(--ink4);border:1px solid var(--rule2);color:
             </select>
             <select class="inline-select" onchange="changeVertical('${u.id}',this.value)">
               <option value="">vertical…</option>
-              ${['epi','agri','trade','markets','packaging','startups','pharma','all'].map(v=>`<option value="${v}">${v}</option>`).join('')}
+              ${['epi','agri','markets','packaging','startups','pharma','all'].map(v=>`<option value="${v}">${v}</option>`).join('')}
             </select>
             <button class="action-btn" onclick="toggleActive('${u.id}',${u.is_active})">${u.is_active?'Deactivate':'Activate'}</button>
             <button class="action-btn danger" onclick="deleteUser('${u.id}','${u.email}')">Delete</button>
@@ -883,7 +882,7 @@ async def master_update_user(request: Request, user_id: str):
 
     if "role" in update and update["role"] not in ("analyst", "senior", "head"):
         raise HTTPException(status_code=400, detail="Invalid role")
-    if "vertical" in update and update["vertical"] not in ("epi", "agri", "trade", "markets", "packaging", "startups", "pharma", "all"):
+    if "vertical" in update and update["vertical"] not in ("epi", "agri", "markets", "packaging", "startups", "pharma", "all"):
         raise HTTPException(status_code=400, detail="Invalid vertical")
 
     if not update:
@@ -1319,7 +1318,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
           <option value="">All verticals</option>
           <option value="epi">Epidemiology</option>
           <option value="agri">Agriculture</option>
-          <option value="trade">Trade</option>
+          <option value="pharma">Pharma Intelligence</option>
           <option value="markets">Markets</option>
           <option value="packaging">Packaging</option>
           <option value="startups">Startups</option>
@@ -1405,7 +1404,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     draft:5, submitted:20, senior_review:35, senior_approved:55,
     head_review:72, approved:88, published:100, rejected:0
   };
-  const V_CLASS = {epi:'v-epi',agri:'v-agri',trade:'v-trade',markets:'v-markets',packaging:'v-packaging',startups:'v-startups',pharma:'v-pharma'};
+  const V_CLASS = {epi:'v-epi',agri:'v-agri',markets:'v-markets',packaging:'v-packaging',startups:'v-startups',pharma:'v-pharma'};
 
   let allReports = [], allActivity = [];
 
@@ -1628,7 +1627,7 @@ async def master_delete_report(request: Request, report_id: str):
 
 # ── /api/upload/{deliverable_type} ───────────────────────────────────────────
 VALID_DELIVERABLE_TYPES = {"report", "model", "deck", "data"}
-VALID_VERTICALS = {"epi", "agri", "trade", "markets", "packaging", "startups", "pharma"}
+VALID_VERTICALS = {"epi", "agri", "markets", "packaging", "startups", "pharma"}
 ALLOWED_EXTENSIONS = {
     "report": {"docx", "pdf"},
     "model":  {"xlsx", "xlsm"},
@@ -3115,13 +3114,6 @@ async def epi_page():
 async def agri_page():
     """Agriculture analyst workspace — requires Supabase auth (agri or all vertical)."""
     return HTMLResponse(content=_inject_supa(_AGRI_HTML))
-
-
-@app.get("/trade-intelligence", response_class=HTMLResponse, include_in_schema=False)
-@app.get("/trade-intelligence/", response_class=HTMLResponse, include_in_schema=False)
-async def trade_page():
-    """Trade analyst workspace — requires Supabase auth (trade or all vertical)."""
-    return HTMLResponse(content=_inject_supa(_TRADE_HTML))
 
 
 @app.get("/markets-intelligence", response_class=HTMLResponse, include_in_schema=False)
