@@ -230,7 +230,7 @@ html,body{font-family:var(--ff-body);background:var(--ink);color:var(--white);-w
 <div class="vert-tabs" id="vertTabs">
   <button class="vtab active" onclick="switchVert('epi',this)"><span class="vtab-dot" style="background:#2ec4b6"></span>Epidemiology</button>
   <button class="vtab" onclick="switchVert('agri',this)"><span class="vtab-dot" style="background:#4caf78"></span>Agriculture</button>
-  <button class="vtab" onclick="switchVert('trade',this)"><span class="vtab-dot" style="background:#4a7fe8"></span>Trade</button>
+  <button class="vtab" onclick="switchVert('pharma',this)"><span class="vtab-dot" style="background:#d47ccc"></span>Pharma</button>
   <button class="vtab" onclick="switchVert('markets',this)"><span class="vtab-dot" style="background:#c8a96e"></span>Markets</button>
   <button class="vtab" onclick="switchVert('packaging',this)"><span class="vtab-dot" style="background:#e85d4a"></span>Packaging</button>
   <button class="vtab" onclick="switchVert('startups',this)"><span class="vtab-dot" style="background:#9b72e8"></span>Startups</button>
@@ -335,38 +335,40 @@ const V = {
     },
   },
 
-  trade:{
-    label:'Trade', key:'trade',
-    acc:'#4a7fe8', accRgb:'74,127,232',
-    kpis:{total:8,published:2,inReview:4,sources:3,deliverables:9},
+  pharma:{
+    label:'Pharma Intelligence', key:'pharma',
+    acc:'#d47ccc', accRgb:'212,124,204',
+    kpis:{total:9,published:3,inReview:4,sources:5,deliverables:11},
     reports:[
-      {title:'India–ASEAN Trade Corridor 2026',        stage:'published',    priority:'high', author:'N. Iyer',  updated:'01 Nov', deliverables:['report','model','deck','data']},
-      {title:'Export Control Regime Changes — Pharma', stage:'head_review',  priority:'high', author:'R. Bose',  updated:'04 Nov', deliverables:['report','model']},
-      {title:'Logistics Cost Index Q4 2026',           stage:'senior_review',priority:'med',  author:'T. Gupta', updated:'03 Nov', deliverables:['report']},
+      {title:'Oncology Drug Market — India Q4 2026',         stage:'published',    priority:'high', author:'N. Iyer',  updated:'01 Nov', deliverables:['report','model','deck','data']},
+      {title:'Diabetes Care: GLP-1 Uptake South Asia',       stage:'head_review',  priority:'high', author:'R. Bose',  updated:'04 Nov', deliverables:['report','model']},
+      {title:'Cardiovascular Generics Pricing Tracker',      stage:'senior_review',priority:'med',  author:'T. Gupta', updated:'03 Nov', deliverables:['report']},
     ],
     factsheets:[
-      {title:'India–ASEAN Trade Monitor',sub:'Bilateral trade flows across 11 ASEAN markets',metrics:[{v:'11',l:'Markets'},{v:'Monthly',l:'Update'}]},
-      {title:'Pharma Export Tracker',sub:'Regulated export compliance, 60+ destinations',metrics:[{v:'60+',l:'Markets'},{v:'Weekly',l:'Update'}]},
+      {title:'India Pharma Market Monitor',sub:'Drug sales across 12 therapy areas, top-20 brands',metrics:[{v:'12',l:'Therapy Areas'},{v:'Monthly',l:'Update'}]},
+      {title:'Regulatory Pipeline Tracker',sub:'CDSCO & FDA approvals, NDA/ANDA filings',metrics:[{v:'200+',l:'Drugs Tracked'},{v:'Weekly',l:'Update'}]},
     ],
     sources:[
-      {n:'DGFT Export–Import Data',tier:'T1',st:'live',meta:'Last sync: 2h ago'},
-      {n:'WTO Trade Statistics',tier:'T1',st:'live',meta:'Last sync: 1d ago'},
-      {n:'RBI Cross-Border Payments',tier:'T2',st:'live',meta:'Last sync: 6h ago'},
+      {n:'IQVIA MIDAS Sales Data',tier:'T1',st:'live',meta:'Last sync: 2h ago'},
+      {n:'AIOCD Pharmatrac',tier:'T1',st:'live',meta:'Last sync: 1d ago'},
+      {n:'CDSCO Approval Database',tier:'T1',st:'live',meta:'Last sync: 6h ago'},
+      {n:'FDA Orange Book',tier:'T2',st:'live',meta:'Last sync: 12h ago'},
+      {n:'EMA Product Database',tier:'T2',st:'live',meta:'Last sync: 1d ago'},
     ],
     uploadedFiles:{
-      report:[{name:'India_ASEAN_Trade_Report_2026.docx',size:'5.4 MB',updated:'01 Nov',asof:'2026-10-28',status:'attached',reportTitle:'India–ASEAN Trade Corridor 2026'}],
-      model:[{name:'ASEAN_Trade_Model_v2.xlsx',size:'31.2 MB',updated:'01 Nov',asof:'2026-10-28',status:'attached',reportTitle:'India–ASEAN Trade Corridor 2026'}],
-      deck:[{name:'ASEAN_Trade_Deck_Client.pptx',size:'7.1 MB',updated:'01 Nov',asof:'2026-10-28',status:'attached',reportTitle:'India–ASEAN Trade Corridor 2026'}],
-      data:[{name:'asean_trade_topline.csv',size:'204 KB',updated:'01 Nov',asof:'2026-10-28',status:'attached',reportTitle:'India–ASEAN Trade Corridor 2026'}],
+      report:[{name:'Oncology_Drug_Market_India_Q4_2026.docx',size:'6.1 MB',updated:'01 Nov',asof:'2026-10-28',status:'attached',reportTitle:'Oncology Drug Market — India Q4 2026'}],
+      model:[{name:'Oncology_Market_Model_v2.xlsx',size:'28.4 MB',updated:'01 Nov',asof:'2026-10-28',status:'attached',reportTitle:'Oncology Drug Market — India Q4 2026'}],
+      deck:[{name:'Oncology_Client_Deck_Q4.pptx',size:'6.8 MB',updated:'01 Nov',asof:'2026-10-28',status:'attached',reportTitle:'Oncology Drug Market — India Q4 2026'}],
+      data:[{name:'oncology_topline_q4_2026.csv',size:'188 KB',updated:'01 Nov',asof:'2026-10-28',status:'attached',reportTitle:'Oncology Drug Market — India Q4 2026'}],
     },
     topline:{
-      geography:'India + 11 ASEAN Markets',
+      geography:'India + South Asia',
       metrics:[
-        {metric:'Total Trade Volume (USD Bn)',  value:'$84.2',  delta:'+9.1%', dir:'up'},
-        {metric:'Trade Deficit (USD Bn)',       value:'$12.4',  delta:'-3.2%', dir:'up'},
-        {metric:'Pharma Export Growth YoY',     value:'+22.4%', delta:'Q4',    dir:'up'},
-        {metric:'Avg Logistics Cost Index',     value:'112.4',  delta:'+6.3%', dir:'down'},
-        {metric:'FTA Utilisation Rate',         value:'64.1%',  delta:'+4.8%', dir:'up'},
+        {metric:'Oncology Market Size (USD Mn)',   value:'$4,820', delta:'+14.2%', dir:'up'},
+        {metric:'GLP-1 Prescriptions Growth YoY',  value:'+38.6%', delta:'Q4',    dir:'up'},
+        {metric:'Generic Penetration Rate',         value:'72.4%',  delta:'+3.1%', dir:'up'},
+        {metric:'CDSCO Approvals YTD',              value:'312',    delta:'+18.2%',dir:'up'},
+        {metric:'Avg Drug Price Erosion (Generics)',value:'-8.3%',  delta:'Q4',    dir:'down'},
       ],
     },
   },
@@ -602,7 +604,7 @@ function delivPanel_model(files){
         <div><label class="mf-label">Data as of</label><input class="mf-input" value="2026-10-28" type="date" readonly title="The cut-off date for raw data in this model"></div>
         <div><label class="mf-label">Base Year</label><input class="mf-input" value="2024" readonly></div>
         <div class="mf-full"><label class="mf-label">Model Type</label>
-          <select class="mf-select"><option>Demand / Market Sizing</option><option>Financial Forecast</option><option>Epidemiological Projection</option><option>Pricing Model</option><option>Trade Flow Model</option><option>Other</option></select></div>
+          <select class="mf-select"><option>Demand / Market Sizing</option><option>Financial Forecast</option><option>Epidemiological Projection</option><option>Pricing Model</option><option>Patient Flow &amp; Funnel</option><option>Other</option></select></div>
         <div class="mf-full"><label class="mf-label">Data Sources Used (comma-separated)</label>
           <input class="mf-input" value="WHO GHO, ICMR, ECDC" readonly></div>
       </div>
