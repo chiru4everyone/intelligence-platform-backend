@@ -1,0 +1,1609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pharma Intelligence — Analyst Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+<script>
+window.__SUPA_URL__ = '{SUPA_URL}';
+window.__SUPA_KEY__ = '{SUPA_KEY}';
+</script>
+<style>
+:root{
+  --ink:#06080d;--ink2:#0c0f16;--ink3:#11151e;--ink4:#171c28;
+  --rule:rgba(255,255,255,.06);--rule2:rgba(255,255,255,.1);
+  --white:#eef0f5;--fog:#7a8599;--ghost:#3d4a60;
+  /* Pharma vertical accent — violet */
+  --acc:#9b72e8;--acc-dim:rgba(155,114,232,.12);--acc-glow:rgba(155,114,232,.2);
+  --acc-soft:rgba(155,114,232,.08);
+  --coral:#e85d4a;--gold:#c8a96e;--violet:#9b72e8;--sapph:#4a7fe8;
+  --ff-serif:'DM Serif Display',Georgia,serif;
+  --ff-body:'Inter',system-ui,sans-serif;
+  --ff-mono:'JetBrains Mono',monospace;
+  --r:6px;--r2:10px;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--ff-body);background:var(--ink);color:var(--white);-webkit-font-smoothing:antialiased}
+
+/* ── Layout ── */
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+
+/* ── Sidebar ── */
+.sidebar{background:var(--ink2);border-right:1px solid var(--rule2);display:flex;flex-direction:column;padding:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-top{padding:20px 18px 16px;border-bottom:1px solid var(--rule)}
+.vertical-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--acc-dim);border:1px solid var(--acc-glow);border-radius:20px;font-family:var(--ff-mono);font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--acc);margin-bottom:10px}
+.vertical-dot{width:5px;height:5px;border-radius:50%;background:var(--acc)}
+.sidebar-title{font-family:var(--ff-serif);font-size:16px;color:var(--white);line-height:1.3;margin-bottom:3px}
+.sidebar-sub{font-size:11px;color:var(--fog)}
+.nav{padding:12px 10px;flex:1}
+.nav-section{margin-bottom:4px}
+.nav-section-label{font-family:var(--ff-mono);font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ghost);padding:8px 8px 4px;display:block}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r);font-size:12.5px;color:var(--fog);cursor:pointer;transition:background .15s,color .15s;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:rgba(255,255,255,.04);color:var(--white)}
+.nav-item.active{background:var(--acc-soft);color:var(--acc);font-weight:500}
+.nav-item .icon{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.sidebar-footer{padding:14px 16px;border-top:1px solid var(--rule)}
+.user-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.user-avatar{width:30px;height:30px;border-radius:50%;background:var(--acc-dim);border:1px solid var(--acc-glow);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--acc);flex-shrink:0}
+.user-info{flex:1;min-width:0}
+.user-name{font-size:12px;font-weight:500;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-role{font-family:var(--ff-mono);font-size:9px;color:var(--fog);letter-spacing:.5px}
+.signout-btn{width:100%;padding:7px;background:transparent;border:1px solid var(--rule2);border-radius:var(--r);font-size:11.5px;color:var(--fog);cursor:pointer;transition:color .15s;font-family:var(--ff-body)}
+.signout-btn:hover{color:var(--white)}
+
+/* ── Main ── */
+.main{display:flex;flex-direction:column;min-height:100vh;overflow-y:auto}
+.topbar{padding:14px 28px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;background:var(--ink);position:sticky;top:0;z-index:5}
+.topbar-title{font-size:14px;font-weight:500;color:var(--white)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.role-badge{padding:4px 10px;border-radius:20px;font-family:var(--ff-mono);font-size:9px;letter-spacing:.8px;text-transform:uppercase}
+.role-analyst{background:rgba(74,127,232,.12);color:#4a7fe8;border:1px solid rgba(74,127,232,.2)}
+.role-senior{background:rgba(155,114,232,.12);color:#9b72e8;border:1px solid rgba(155,114,232,.2)}
+.role-head{background:rgba(200,169,110,.12);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
+.content{padding:24px 28px;display:flex;flex-direction:column;gap:22px;flex:1}
+
+/* ── KPI cards ── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.kpi{padding:18px 20px;background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--acc);opacity:.6}
+.kpi-val{font-size:26px;font-weight:600;color:var(--white);margin-bottom:4px;font-family:var(--ff-mono)}
+.kpi-label{font-size:11px;color:var(--fog);letter-spacing:.3px}
+.kpi-delta{font-size:10.5px;margin-top:6px;font-family:var(--ff-mono)}
+.kpi-delta.up{color:var(--acc)}
+.kpi-delta.down{color:var(--coral)}
+
+/* ── Section ── */
+.section{background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);overflow:hidden}
+.section-head{padding:14px 20px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.section-title{font-size:13px;font-weight:600;color:var(--white)}
+.section-actions{display:flex;gap:8px;align-items:center}
+.btn-primary{padding:7px 16px;background:var(--acc);border:none;border-radius:var(--r);font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;font-family:var(--ff-body);transition:opacity .15s}
+.btn-primary:hover{opacity:.88}
+.btn-secondary{padding:6px 14px;background:transparent;border:1px solid var(--rule2);border-radius:var(--r);font-size:12px;color:var(--fog);cursor:pointer;font-family:var(--ff-body);transition:color .15s}
+.btn-secondary:hover{color:var(--white)}
+.btn-approve{padding:5px 12px;background:rgba(46,196,182,.12);border:1px solid rgba(46,196,182,.25);border-radius:var(--r);font-size:11px;color:var(--acc);cursor:pointer;font-family:var(--ff-body);transition:background .15s}
+.btn-approve:hover{background:rgba(46,196,182,.2)}
+.btn-reject{padding:5px 12px;background:rgba(232,93,74,.08);border:1px solid rgba(232,93,74,.2);border-radius:var(--r);font-size:11px;color:var(--coral);cursor:pointer;font-family:var(--ff-body);transition:background .15s}
+.btn-reject:hover{background:rgba(232,93,74,.15)}
+.btn-publish{padding:5px 12px;background:rgba(200,169,110,.12);border:1px solid rgba(200,169,110,.25);border-radius:var(--r);font-size:11px;color:var(--gold);cursor:pointer;font-family:var(--ff-body)}
+
+/* ── Report table ── */
+.report-table{width:100%;border-collapse:collapse}
+.report-table th{font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fog);padding:10px 20px;text-align:left;border-bottom:1px solid var(--rule)}
+.report-table td{padding:11px 20px;font-size:12.5px;border-bottom:1px solid var(--rule);vertical-align:middle}
+.report-table tr:last-child td{border-bottom:none}
+.report-table tr:hover td{background:rgba(255,255,255,.018)}
+.stage-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-family:var(--ff-mono);font-size:9.5px;letter-spacing:.5px}
+.s-draft{background:rgba(61,74,96,.3);color:#7a8599;border:1px solid rgba(61,74,96,.4)}
+.s-submitted{background:rgba(74,127,232,.1);color:#4a7fe8;border:1px solid rgba(74,127,232,.2)}
+.s-senior_review{background:rgba(155,114,232,.1);color:#9b72e8;border:1px solid rgba(155,114,232,.2)}
+.s-senior_approved{background:rgba(46,196,182,.1);color:#2ec4b6;border:1px solid rgba(46,196,182,.2)}
+.s-head_review{background:rgba(200,169,110,.1);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
+.s-approved{background:rgba(142,212,74,.1);color:#8ed44a;border:1px solid rgba(142,212,74,.2)}
+.s-published{background:rgba(76,255,145,.1);color:#4cff91;border:1px solid rgba(76,255,145,.2)}
+.s-rejected{background:rgba(232,93,74,.1);color:#e85d4a;border:1px solid rgba(232,93,74,.2)}
+.priority-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
+.p-high{background:var(--coral)}
+.p-med{background:var(--gold)}
+.p-low{background:var(--ghost)}
+
+/* ── Factsheet cards ── */
+.factsheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:16px}
+.fs-card{padding:16px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2);transition:border-color .15s}
+.fs-card:hover{border-color:var(--acc-glow)}
+.fs-status{font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+.fs-status.published{color:var(--acc)}
+.fs-status.updating{color:var(--gold)}
+.fs-status.pipeline{color:var(--fog)}
+.fs-title{font-size:13.5px;font-weight:500;color:var(--white);line-height:1.4;margin-bottom:6px}
+.fs-sub{font-size:11.5px;color:var(--fog);line-height:1.5;margin-bottom:10px}
+.fs-metrics{display:flex;gap:12px;flex-wrap:wrap}
+.fs-metric{text-align:center}
+.fs-metric-val{font-family:var(--ff-mono);font-size:14px;font-weight:500;color:var(--acc)}
+.fs-metric-label{font-size:9.5px;color:var(--fog);margin-top:1px}
+
+/* ── Data sources ── */
+.source-row{display:flex;align-items:center;justify-content:space-between;padding:11px 20px;border-bottom:1px solid var(--rule)}
+.source-row:last-child{border-bottom:none}
+.source-info{display:flex;align-items:center;gap:10px}
+.source-status{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.status-live{background:#4cff91;box-shadow:0 0 6px rgba(76,255,145,.4)}
+.status-stale{background:var(--gold)}
+.status-error{background:var(--coral);box-shadow:0 0 6px rgba(232,93,74,.4)}
+.source-name{font-size:12.5px;color:var(--white)}
+.source-tier{font-family:var(--ff-mono);font-size:9px;color:var(--fog);margin-left:4px;padding:1px 5px;background:rgba(255,255,255,.04);border-radius:3px}
+.source-meta{font-size:11px;color:var(--fog);font-family:var(--ff-mono)}
+
+/* ── Deliverable upload hub ── */
+.deliv-card{padding:16px;background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);display:flex;flex-direction:column;gap:8px;transition:border-color .15s}
+.deliv-card:hover{border-color:var(--acc-glow)}
+.deliv-card-icon{font-size:22px;line-height:1}
+.deliv-card-title{font-size:12.5px;font-weight:600;color:var(--white);line-height:1.3;word-break:break-word}
+.deliv-card-meta{font-family:var(--ff-mono);font-size:9.5px;color:var(--fog);display:flex;flex-direction:column;gap:3px}
+.deliv-card-footer{margin-top:auto;display:flex;align-items:center;justify-content:space-between}
+.deliv-card-type{font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:2px 7px;border-radius:10px;background:var(--acc-dim);color:var(--acc);border:1px solid var(--acc-glow)}
+.deliv-card-dl{font-size:12px;color:var(--fog);text-decoration:none;padding:3px 7px;border:1px solid var(--rule2);border-radius:5px;transition:border-color .15s,color .15s}
+.deliv-card-dl:hover{border-color:var(--acc-glow);color:var(--acc)}
+.rr-card{background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2);padding:14px 16px;margin:6px 16px;cursor:pointer;transition:border-color .15s}
+.rr-card:hover{border-color:var(--acc)}
+.rr-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
+.rr-card-title{font-size:13px;font-weight:500;color:var(--white);line-height:1.3}
+.rr-status-badge{font-family:var(--ff-mono);font-size:9px;text-transform:uppercase;letter-spacing:.8px;padding:2px 7px;border-radius:8px;white-space:nowrap;flex-shrink:0}
+.rr-status-draft{background:rgba(74,85,104,.3);color:var(--fog)}
+.rr-status-pending_approval{background:rgba(200,169,110,.15);color:var(--gold);border:1px solid rgba(200,169,110,.3)}
+.rr-status-approved{background:rgba(76,255,145,.12);color:#4cff91;border:1px solid rgba(76,255,145,.2)}
+.rr-status-in_progress{background:rgba(74,127,232,.15);color:#4a7fe8;border:1px solid rgba(74,127,232,.25)}
+.rr-status-review{background:rgba(155,114,232,.15);color:var(--violet);border:1px solid rgba(155,114,232,.25)}
+.rr-status-published{background:rgba(46,196,182,.15);color:var(--acc);border:1px solid rgba(46,196,182,.25)}
+.rr-status-delivered{background:rgba(200,169,110,.25);color:var(--gold);border:1px solid rgba(200,169,110,.4)}
+.rr-card-meta{display:flex;flex-wrap:wrap;gap:12px}
+.rr-meta-item{font-family:var(--ff-mono);font-size:10px;color:var(--fog)}
+.rr-meta-item strong{color:var(--white)}
+.rr-approve-btn{padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;border:1px solid rgba(76,255,145,.3);background:rgba(76,255,145,.08);color:#4cff91;font-family:var(--ff-body);transition:all .15s;margin-top:8px;margin-right:6px}
+.rr-approve-btn:hover{background:rgba(76,255,145,.15)}
+.rr-progress-btn{padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;border:1px solid rgba(74,127,232,.3);background:rgba(74,127,232,.08);color:#4a7fe8;font-family:var(--ff-body);transition:all .15s;margin-top:8px;margin-right:6px}
+.rr-progress-btn:hover{background:rgba(74,127,232,.15)}
+.deliv-tabs{display:flex;gap:0;border-bottom:1px solid var(--rule)}
+.dtab{display:flex;align-items:center;gap:7px;padding:11px 18px;font-size:12px;color:var(--fog);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--ff-body);white-space:nowrap}
+.dtab:hover{color:var(--white)}
+.dtab.active{color:var(--white);border-bottom-color:var(--acc)}
+.dtab-hint{font-family:var(--ff-mono);font-size:9px;color:var(--ghost);margin-left:2px}
+.deliv-panel{display:none;padding:20px}
+.deliv-panel.show{display:block}
+.upzone{border:1.5px dashed var(--rule2);border-radius:var(--r2);padding:28px 20px;text-align:center;transition:border-color .2s,background .2s;cursor:pointer;position:relative}
+.upzone:hover{border-color:var(--acc-glow);background:var(--acc-soft)}
+.upzone-icon{font-size:30px;margin-bottom:10px}
+.upzone-title{font-size:13px;font-weight:500;color:var(--white);margin-bottom:4px}
+.upzone-sub{font-size:11.5px;color:var(--fog);margin-bottom:3px}
+.upzone-formats{font-family:var(--ff-mono);font-size:10px;color:var(--ghost);letter-spacing:.5px}
+.meta-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.mf-full{grid-column:1/-1}
+.mf-label{font-family:var(--ff-mono);font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--fog);margin-bottom:5px;display:block}
+.mf-input{width:100%;padding:8px 11px;background:var(--ink3);border:1.5px solid var(--rule2);border-radius:var(--r);font-size:12.5px;color:var(--white);font-family:var(--ff-body);outline:none}
+.mf-input:focus{border-color:var(--acc)}
+.mf-select{width:100%;padding:8px 11px;background:var(--ink3);border:1.5px solid var(--rule2);border-radius:var(--r);font-size:12.5px;color:var(--white);font-family:var(--ff-body);outline:none;cursor:pointer}
+.mf-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--rule)}
+.btn-cancel{padding:7px 14px;background:transparent;border:1px solid var(--rule2);border-radius:var(--r);font-size:12px;color:var(--fog);cursor:pointer;font-family:var(--ff-body)}
+.ufile{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2);margin-bottom:8px}
+.ufile-icon{font-size:20px;flex-shrink:0}
+.ufile-info{flex:1;min-width:0}
+.ufile-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.ufile-meta{font-size:10.5px;color:var(--fog);font-family:var(--ff-mono)}
+.ufile-status{font-family:var(--ff-mono);font-size:9px;padding:2px 8px;border-radius:10px}
+.ufile-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.wf-btn{font-family:var(--ff-mono);font-size:9px;padding:3px 9px;border-radius:10px;border:1px solid;cursor:pointer;font-weight:600;letter-spacing:.5px;transition:opacity .15s}
+.wf-btn:hover{opacity:.8}
+.wf-approve{background:rgba(76,255,145,.1);color:#4cff91;border-color:rgba(76,255,145,.2)}
+.wf-reject{background:rgba(232,93,74,.08);color:#e85d4a;border-color:rgba(232,93,74,.18)}
+.wf-publish{background:var(--acc-dim);color:var(--acc);border-color:var(--acc-glow)}
+.ufile-note{font-size:10px;color:#e85d4a;font-family:var(--ff-mono);margin-top:3px;opacity:.85}
+.ufile-dl{font-size:14px;color:var(--fog);text-decoration:none;line-height:1;padding:2px 4px;border-radius:4px;transition:color .15s}
+.ufile-dl:hover{color:var(--acc)}
+.us-attached{background:rgba(76,255,145,.08);color:#4cff91;border:1px solid rgba(76,255,145,.15)}
+.us-review{background:var(--acc-dim);color:var(--acc);border:1px solid var(--acc-glow)}
+.us-pending{background:rgba(200,169,110,.1);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
+.info-box{padding:12px 14px;background:var(--acc-soft);border:1px solid var(--acc-dim);border-radius:var(--r2);font-size:11.5px;color:var(--fog);line-height:1.6;margin-bottom:14px}
+.info-box strong{color:var(--white)}
+.tl-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--rule)}
+.tl-row:last-child{border-bottom:none}
+.tl-metric{font-size:12px;color:var(--fog)}
+.tl-value{font-family:var(--ff-mono);font-size:13px;font-weight:500;color:var(--white)}
+.tl-delta{font-family:var(--ff-mono);font-size:10px;padding:1px 6px;border-radius:10px;margin-left:6px}
+.tl-up{background:rgba(76,255,145,.08);color:#4cff91}
+.tl-down{background:rgba(232,93,74,.08);color:#e85d4a}
+/* data age badges */
+.age-badge{font-family:var(--ff-mono);font-size:9px;padding:1px 7px;border-radius:10px;font-weight:600;vertical-align:middle}
+.age-fresh{background:rgba(76,255,145,.1);color:#4cff91;border:1px solid rgba(76,255,145,.2)}
+.age-recent{background:rgba(46,196,182,.1);color:var(--acc);border:1px solid var(--acc-glow)}
+.age-moderate{background:rgba(200,169,110,.1);color:#c8a96e;border:1px solid rgba(200,169,110,.2)}
+.age-stale{background:rgba(232,93,74,.08);color:#e85d4a;border:1px solid rgba(232,93,74,.18)}
+.age-old{background:rgba(155,114,232,.1);color:#9b72e8;border:1px solid rgba(155,114,232,.2)}
+.ufile-datechip{font-family:var(--ff-mono);font-size:9.5px;color:var(--fog)}
+/* date input styling */
+input[type="date"].mf-input{color-scheme:dark}
+
+/* ── Empty state ── */
+.empty{padding:36px;text-align:center;color:var(--fog);font-size:13px;font-style:italic}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--ink2);border:1px solid var(--rule2);border-radius:12px;width:100%;max-width:460px}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:14px;font-weight:600;color:var(--white)}
+.modal-close{background:none;border:none;color:var(--fog);font-size:18px;cursor:pointer}
+.modal-body{padding:20px;display:flex;flex-direction:column;gap:14px}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-label{font-family:var(--ff-mono);font-size:9px;letter-spacing:1.3px;text-transform:uppercase;color:var(--fog)}
+.form-input{padding:9px 12px;background:var(--ink3);border:1.5px solid var(--rule2);border-radius:var(--r);font-size:13px;color:var(--white);font-family:var(--ff-body);outline:none;transition:border-color .2s}
+.form-input:focus{border-color:var(--acc)}
+.form-select{padding:9px 12px;background:var(--ink3);border:1.5px solid var(--rule2);border-radius:var(--r);font-size:13px;color:var(--white);font-family:var(--ff-body);outline:none;cursor:pointer}
+.form-textarea{padding:9px 12px;background:var(--ink3);border:1.5px solid var(--rule2);border-radius:var(--r);font-size:13px;color:var(--white);font-family:var(--ff-body);outline:none;resize:vertical;min-height:80px}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--rule);display:flex;justify-content:flex-end;gap:8px}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink4);border:1px solid var(--rule2);border-radius:20px;padding:9px 20px;font-size:12px;color:var(--white);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Loading skeleton ── */
+.skeleton{background:linear-gradient(90deg,var(--ink3) 25%,var(--ink4) 50%,var(--ink3) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;height:14px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+@media(max-width:800px){
+  .shell{grid-template-columns:1fr}
+  .sidebar{position:fixed;left:-220px;z-index:20;transition:left .25s;height:100%}
+  .sidebar.open{left:0}
+  .kpi-row{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="vertical-pill"><span class="vertical-dot"></span>Pharma</div>
+      <div class="sidebar-title">Intelligence<br>Platform</div>
+      <div class="sidebar-sub">Analyst Workspace</div>
+    </div>
+    <nav class="nav">
+      <span class="nav-section-label">Workspace</span>
+      <button class="nav-item active" onclick="showSection('dashboard',this)"><span class="icon">📊</span>Dashboard</button>
+      <button class="nav-item" onclick="showSection('reports',this)"><span class="icon">📋</span>Reports</button>
+      <button class="nav-item" onclick="showSection('factsheets',this)"><span class="icon">📄</span>Factsheets</button>
+      <button class="nav-item" onclick="showSection('sources',this)"><span class="icon">🔗</span>Data Sources</button>
+      <button class="nav-item" id="navUpload" onclick="showSection('deliverables',this)" style="display:none"><span class="icon">📦</span>Deliverables</button>
+      <button class="nav-item" id="navRequests" onclick="showSection('requests',this)" style="display:none"><span class="icon">💊</span>Research Requests</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-row">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="userName">Loading…</div>
+          <div class="user-role" id="userRoleLabel">—</div>
+        </div>
+      </div>
+      <button class="signout-btn" onclick="signOut()">Sign out</button>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="pageTitle">Dashboard</div>
+      <div class="topbar-right">
+        <span class="role-badge" id="roleBadge">—</span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Dashboard section -->
+      <div id="sec-dashboard">
+        <div class="kpi-row" id="kpiRow">
+          <div class="kpi"><div class="kpi-val skeleton" style="width:50px;height:28px"></div><div class="kpi-label">Total Reports</div></div>
+          <div class="kpi"><div class="kpi-val skeleton" style="width:50px;height:28px"></div><div class="kpi-label">Published</div></div>
+          <div class="kpi"><div class="kpi-val skeleton" style="width:50px;height:28px"></div><div class="kpi-label">In Review</div></div>
+          <div class="kpi"><div class="kpi-val skeleton" style="width:50px;height:28px"></div><div class="kpi-label">Data Sources</div></div>
+        </div>
+        <!-- Recent activity inline -->
+        <div class="section" style="margin-top:0">
+          <div class="section-head"><div class="section-title">Recent Activity</div></div>
+          <div id="dashActivity" style="padding:12px 0"><div class="empty">Loading…</div></div>
+        </div>
+
+        <!-- Published deliverables panel -->
+        <div class="section" style="margin-top:0" id="publishedDelivSection">
+          <div class="section-head">
+            <div class="section-title">Published Deliverables</div>
+            <div class="section-actions" style="font-family:var(--ff-mono);font-size:10px;color:var(--fog)" id="publishedDelivCount"></div>
+          </div>
+          <div id="publishedDelivGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:4px 0 8px">
+            <div class="empty">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Topline metrics table -->
+        <div class="section" style="margin-top:0" id="toplineSection">
+          <div class="section-head">
+            <div class="section-title">Topline Metrics</div>
+            <div class="section-actions" style="font-family:var(--ff-mono);font-size:10px;color:var(--fog)" id="toplineCount"></div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="report-table" id="toplineTable">
+              <thead><tr><th>Metric</th><th>Geography</th><th>Period</th><th>Value</th><th>Unit</th><th>Change</th><th>As of</th></tr></thead>
+              <tbody id="toplineBody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Research Requests section (head/senior only) -->
+      <div class="section-wrap" id="section-requests" style="display:none">
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Research Requests</div>
+            <div class="section-actions">
+              <span style="font-family:var(--ff-mono);font-size:10px;color:var(--fog)" id="rrCount"></span>
+              <button class="tab-btn" id="newRrBtn" style="display:none;margin-left:10px" onclick="openNewRrModal()">+ New Request</button>
+            </div>
+          </div>
+          <div id="rrList" style="padding:8px 0">
+            <div class="empty">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reports section -->
+      <div id="sec-reports" style="display:none">
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Pharma Intelligence Reports</div>
+            <div class="section-actions">
+              <button class="btn-primary" id="newReportBtn" onclick="openNewReport()" style="display:none">+ New Report</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="report-table">
+              <thead><tr><th>Title</th><th>Stage</th><th>Priority</th><th>Author</th><th>Updated</th><th>Actions</th></tr></thead>
+              <tbody id="reportTable"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Factsheets section -->
+      <div id="sec-factsheets" style="display:none">
+        <div class="section">
+          <div class="section-head"><div class="section-title">Published Factsheets — Pharma Intelligence</div></div>
+          <div class="factsheet-grid" id="factsheetGrid"><div class="empty">Loading…</div></div>
+        </div>
+      </div>
+
+      <!-- Data sources section -->
+      <div id="sec-sources" style="display:none">
+        <div class="section">
+          <div class="section-head"><div class="section-title">Data Sources — Pharma Intelligence</div></div>
+          <div id="sourcesList"><div class="empty">Loading…</div></div>
+        </div>
+      </div>
+
+      <!-- Deliverables Upload Hub -->
+      <div id="sec-deliverables" style="display:none">
+        <div class="section">
+          <div class="section-head">
+            <div>
+              <div class="section-title">Deliverables Upload Hub</div>
+              <div class="section-desc">Upload reports, models, decks, and topline data against each research report</div>
+            </div>
+          </div>
+          <!-- 4-tab deliverable structure -->
+          <div class="deliv-tabs">
+            <button class="dtab active" id="dtab-report" onclick="switchDelivTab('report',this)">📄 <strong>Research Report</strong><span class="dtab-hint">DOCX/PDF</span></button>
+            <button class="dtab" id="dtab-model" onclick="switchDelivTab('model',this)">📊 <strong>Excel Model</strong><span class="dtab-hint">XLSX</span></button>
+            <button class="dtab" id="dtab-deck" onclick="switchDelivTab('deck',this)">🎯 <strong>Client Deck</strong><span class="dtab-hint">PPTX</span></button>
+            <button class="dtab" id="dtab-data" onclick="switchDelivTab('data',this)">🗃️ <strong>Topline Data</strong><span class="dtab-hint">CSV/JSON</span></button>
+          </div>
+
+          <!-- Report tab -->
+          <div class="deliv-panel show" id="dp-report">
+            <div class="info-box"><strong>Research Report (DOCX / PDF)</strong> — The full written study. Executive summary, methodology, findings by geography/segment, implications, appendix. 20–80 pages. Uploaded by the analyst; visible to senior + head post-approval.</div>
+            <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:240px">
+                <div class="upzone" onclick="triggerUpload('report-file')">
+                  <div class="upzone-icon">📄</div>
+                  <div class="upzone-title">Drop Research Report here</div>
+                  <div class="upzone-sub">Full written study — exec summary to appendix</div>
+                  <div class="upzone-formats">DOCX · PDF · Max 100 MB</div>
+                  <input type="file" id="report-file" style="display:none" accept=".docx,.pdf" onchange="handleDelivUpload(this,'report')">
+                </div>
+              </div>
+              <div style="flex:1;min-width:240px">
+                <div class="meta-form">
+                  <div class="mf-full"><label class="mf-label">Link to Report</label><select class="mf-select" id="report-link"></select></div>
+                  <div><label class="mf-label">Version</label><input class="mf-input" id="report-version" placeholder="e.g. v1.0"></div>
+                  <div><label class="mf-label">Page Count</label><input class="mf-input" id="report-pages" placeholder="e.g. 48" type="number"></div>
+                  <div><label class="mf-label">Data as of</label><input class="mf-input" id="report-asof" type="date" title="The date up to which the data in this report is current"></div>
+                  <div><label class="mf-label">Coverage Period</label><input class="mf-input" id="report-coverage" placeholder="e.g. Jan 2024 – Oct 2026"></div>
+                  <div class="mf-full"><label class="mf-label">Reviewer Notes</label><input class="mf-input" id="report-notes" placeholder="Notes for senior/head…"></div>
+                  <div class="mf-full"><label class="mf-label">Visibility</label>
+                    <select class="mf-select" id="report-vis">
+                      <option value="internal">Internal only</option>
+                      <option value="summary">Summary visible to clients</option>
+                      <option value="full">Full report visible to clients</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mf-actions">
+                  <button class="btn-cancel" onclick="clearDelivForm('report')">Clear</button>
+                  <button class="btn-primary" onclick="submitDeliv('report')">Upload Report</button>
+                </div>
+              </div>
+            </div>
+            <div id="report-list" style="margin-top:4px"></div>
+          </div>
+
+          <!-- Model tab -->
+          <div class="deliv-panel" id="dp-model">
+            <div class="info-box"><strong>Quantitative Model (XLSX)</strong> — The underlying Excel workbook from which all published numbers are derived. Structured sheets: assumptions, raw data, computed outputs, scenarios, audit trail. Numbers feed the topline data upload and front-end charts. Visible to senior + head only.</div>
+            <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:240px">
+                <div class="upzone" onclick="triggerUpload('model-file')">
+                  <div class="upzone-icon">📊</div>
+                  <div class="upzone-title">Drop Excel Model here</div>
+                  <div class="upzone-sub">Assumptions → data → outputs → scenarios</div>
+                  <div class="upzone-formats">XLSX · XLSM · Max 200 MB</div>
+                  <input type="file" id="model-file" style="display:none" accept=".xlsx,.xlsm" onchange="handleDelivUpload(this,'model')">
+                </div>
+              </div>
+              <div style="flex:1;min-width:240px">
+                <div class="meta-form">
+                  <div class="mf-full"><label class="mf-label">Link to Report</label><select class="mf-select" id="model-link"></select></div>
+                  <div><label class="mf-label">Model Version</label><input class="mf-input" id="model-version" placeholder="e.g. v2.0"></div>
+                  <div><label class="mf-label">Sheet Count</label><input class="mf-input" id="model-sheets" placeholder="e.g. 12" type="number"></div>
+                  <div><label class="mf-label">Data as of</label><input class="mf-input" id="model-asof" type="date" title="The date up to which raw data in this model is current"></div>
+                  <div><label class="mf-label">Base Year</label><input class="mf-input" id="model-baseyear" placeholder="e.g. 2024"></div>
+                  <div class="mf-full"><label class="mf-label">Model Type</label>
+                    <select class="mf-select" id="model-type">
+                      <option>Drug Sales Forecast</option>
+                      <option>Market Share Model</option>
+                      <option>Epidemiology-to-Rx Model</option>
+                      <option>Patient Flow & Funnel</option>
+                      <option>Pricing & Access Model</option>
+                      <option>Pipeline Valuation</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div class="mf-full"><label class="mf-label">Data Sources Used</label><input class="mf-input" id="model-sources" placeholder="IQVIA, AIOCD, CDSCO, FDA, EMA…"></div>
+                </div>
+                <div class="mf-actions">
+                  <button class="btn-cancel" onclick="clearDelivForm('model')">Clear</button>
+                  <button class="btn-secondary" onclick="downloadTemplate('model')" title="Download blank Excel model template">⬇ Template</button>
+                  <button class="btn-primary" onclick="submitDeliv('model')">Upload Model</button>
+                </div>
+              </div>
+            </div>
+            <div id="model-list" style="margin-top:4px"></div>
+          </div>
+
+          <!-- Deck tab -->
+          <div class="deliv-panel" id="dp-deck">
+            <div class="info-box"><strong>Client Deck (PPTX)</strong> — Go-to-meeting slide deck. Crisp, visual, executive-ready. McKinsey pyramid structure: headline insight per slide, supporting data below. Typically 12–20 slides. Ready to present to clients on the go — no editing needed post-approval.</div>
+            <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:240px">
+                <div class="upzone" onclick="triggerUpload('deck-file')">
+                  <div class="upzone-icon">🎯</div>
+                  <div class="upzone-title">Drop Client Deck here</div>
+                  <div class="upzone-sub">Presentation-ready — 12–20 slides, executive format</div>
+                  <div class="upzone-formats">PPTX · PDF · Max 100 MB</div>
+                  <input type="file" id="deck-file" style="display:none" accept=".pptx,.pdf" onchange="handleDelivUpload(this,'deck')">
+                </div>
+              </div>
+              <div style="flex:1;min-width:240px">
+                <div class="meta-form">
+                  <div class="mf-full"><label class="mf-label">Link to Report</label><select class="mf-select" id="deck-link"></select></div>
+                  <div><label class="mf-label">Slide Count</label><input class="mf-input" id="deck-slides" placeholder="e.g. 16" type="number"></div>
+                  <div><label class="mf-label">Deck Version</label><input class="mf-input" id="deck-version" placeholder="e.g. v1.0"></div>
+                  <div><label class="mf-label">Data as of</label><input class="mf-input" id="deck-asof" type="date" title="The date up to which the numbers in this deck are current"></div>
+                  <div><label class="mf-label">Presentation Date</label><input class="mf-input" id="deck-presdate" type="date" title="Scheduled client presentation date (optional)"></div>
+                  <div class="mf-full"><label class="mf-label">Audience</label>
+                    <select class="mf-select" id="deck-audience">
+                      <option>Client — C-Suite</option>
+                      <option>Client — Strategy Team</option>
+                      <option>Internal Review Only</option>
+                      <option>Board Presentation</option>
+                    </select>
+                  </div>
+                  <div class="mf-full"><label class="mf-label">Branding</label>
+                    <select class="mf-select" id="deck-brand">
+                      <option value="platform">Platform branded (default)</option>
+                      <option value="whitelabel">White-label (client)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mf-actions">
+                  <button class="btn-cancel" onclick="clearDelivForm('deck')">Clear</button>
+                  <button class="btn-primary" onclick="submitDeliv('deck')">Upload Deck</button>
+                </div>
+              </div>
+            </div>
+            <div id="deck-list" style="margin-top:4px"></div>
+          </div>
+
+          <!-- Data tab -->
+          <div class="deliv-panel" id="dp-data">
+            <div class="info-box"><strong>Topline Data (CSV / JSON)</strong> — Structured key metrics extracted from the Excel model. These numbers directly power the front-end: KPI cards, heatmaps, trend charts, comparison tables visible to logged-in clients post-publication. One row per metric: geography, period, value, unit, delta.</div>
+            <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:240px">
+                <div class="upzone" onclick="triggerUpload('data-file')">
+                  <div class="upzone-icon">🗃️</div>
+                  <div class="upzone-title">Drop Topline Data here</div>
+                  <div class="upzone-sub">Structured metrics — feeds KPI cards, heatmaps, charts</div>
+                  <div class="upzone-formats">CSV · JSON · Max 10 MB</div>
+                  <input type="file" id="data-file" style="display:none" accept=".csv,.json" onchange="handleDelivUpload(this,'data')">
+                </div>
+                <div style="margin-top:12px;padding:12px;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r2)">
+                  <div style="font-family:var(--ff-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Expected CSV format</div>
+                  <pre style="font-family:var(--ff-mono);font-size:9.5px;color:var(--acc);line-height:1.6;overflow-x:auto;white-space:pre-wrap">drug,therapy_area,geography,period,value,unit,delta,dir
+Metformin,Diabetes,India,Q4 2026,42150,USD Mn,+8.3%,up
+Trastuzumab,Oncology,South Asia,Q4 2026,1230,USD Mn,+14.1%,up
+Atorvastatin,Cardiovascular,India,Nov 2026,18740,USD Mn,+5.6%,up</pre>
+                </div>
+              </div>
+              <div style="flex:1;min-width:240px">
+                <div class="meta-form">
+                  <div class="mf-full"><label class="mf-label">Link to Report</label><select class="mf-select" id="data-link"></select></div>
+                  <div><label class="mf-label">Reference Period</label><input class="mf-input" id="data-period" placeholder="e.g. Q4 2026"></div>
+                  <div><label class="mf-label">Geography</label><input class="mf-input" id="data-geo" placeholder="e.g. India + 12 Markets"></div>
+                  <div><label class="mf-label">Data as of</label><input class="mf-input" id="data-asof" type="date" title="The cut-off date for the metrics in this file"></div>
+                  <div><label class="mf-label">Next Update</label><input class="mf-input" id="data-nextupdate" placeholder="e.g. Dec 2026 / Q1 2027"></div>
+                  <div class="mf-full"><label class="mf-label">Publish to Front-End</label>
+                    <select class="mf-select" id="data-publish">
+                      <option value="yes">Yes — publish on report approval</option>
+                      <option value="no">No — internal only</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mf-actions">
+                  <button class="btn-cancel" onclick="clearDelivForm('data')">Clear</button>
+                  <button class="btn-secondary" onclick="downloadTemplate('data')" title="Download blank CSV data template">⬇ Template</button>
+                  <button class="btn-primary" onclick="submitDeliv('data')">Upload Data</button>
+                </div>
+                <div id="data-topline" style="margin-top:14px"></div>
+              </div>
+            </div>
+            <div id="data-list" style="margin-top:4px"></div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- New report modal -->
+<div class="modal-overlay" id="newReportModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">New Pharma Intelligence Report</div>
+      <button class="modal-close" onclick="closeModal('newReportModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field"><label class="form-label">Title</label><input class="form-input" id="nr_title" placeholder="Report title"></div>
+      <div class="form-field"><label class="form-label">Abstract</label><textarea class="form-textarea" id="nr_abstract" placeholder="Brief description…"></textarea></div>
+      <div class="form-field"><label class="form-label">Priority</label>
+        <select class="form-select" id="nr_priority"><option value="med">Medium</option><option value="high">High</option><option value="low">Low</option></select>
+      </div>
+      <div class="form-field"><label class="form-label">Due date</label><input class="form-input" type="date" id="nr_due"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('newReportModal')">Cancel</button>
+      <button class="btn-primary" onclick="createReport()">Create report</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reject modal -->
+<div class="modal-overlay" id="rejectModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Reject Report</div>
+      <button class="modal-close" onclick="closeModal('rejectModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field"><label class="form-label">Reason for rejection</label><textarea class="form-textarea" id="rejectNote" placeholder="Explain what needs to be revised…"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('rejectModal')">Cancel</button>
+      <button class="btn-reject" onclick="confirmReject()">Confirm rejection</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  /* ── Supabase init ── */
+  const SUPA_URL = window.__SUPA_URL__ || '';
+  const SUPA_KEY = window.__SUPA_KEY__ || '';
+  let supabase = null;
+  if(SUPA_URL && SUPA_KEY && window.supabase){
+    supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    window._supa = supabase; window._userRole = '';
+  }
+
+  const VERTICAL = 'pharma';
+  const STAGE_LABELS = {
+    draft:'Draft', submitted:'Submitted', senior_review:'Senior Review',
+    senior_approved:'Sr. Approved', head_review:'Head Review',
+    approved:'Approved', published:'Published', rejected:'Rejected'
+  };
+
+  let currentUser = null, currentProfile = null;
+  let rejectTargetId = null;
+
+  /* ── Boot ── */
+  async function boot(){
+    if(!supabase){ showToast('Supabase not configured'); return; }
+    const { data: { session } } = await supabase.auth.getSession();
+    if(!session){ window.location.href='/'; return; }
+
+    // Verify role + vertical via /api/me
+    try {
+      const res = await fetch('/api/me', { headers: { 'Authorization': 'Bearer '+session.access_token }});
+      if(!res.ok){ window.location.href='/'; return; }
+      currentProfile = await res.json();
+      window._userRole = currentProfile.role || '';
+      // Block wrong vertical
+      if(currentProfile.vertical !== VERTICAL && currentProfile.vertical !== 'all'){
+        window.location.href = currentProfile.portal || '/';
+        return;
+      }
+    } catch(_){ window.location.href='/'; return; }
+
+    currentUser = session.user;
+    renderUserUI(currentProfile);
+    loadAll();
+  }
+
+  function renderUserUI(p){
+    const name = p.full_name || p.email || 'Analyst';
+    document.getElementById('userName').textContent = name;
+    document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
+    document.getElementById('userRoleLabel').textContent = p.role.toUpperCase();
+    const badge = document.getElementById('roleBadge');
+    badge.textContent = {analyst:'Analyst',senior:'Senior Analyst',head:'Head of Research'}[p.role] || p.role;
+    badge.className = 'role-badge role-'+p.role;
+    // Show upload nav for senior + head
+    if(p.role === 'senior' || p.role === 'head'){
+      document.getElementById('navUpload').style.display='flex';
+      if(['head','senior','master'].includes(p.role)){
+        const rrBtn = document.getElementById('navRequests');
+        if(rrBtn) rrBtn.style.display='flex';
+      }
+    }
+    // Show new report button for all roles
+    document.getElementById('newReportBtn').style.display='inline-block';
+  }
+
+  async function loadAll(){
+    await Promise.all([loadKPIs(), loadReports(), loadFactsheets(), loadSources(), loadActivity()]);
+    loadDeliverablesList();
+    loadPublishedDeliverables();
+    loadTopline();
+    loadResearchRequests();
+  }
+
+  /* ── KPIs ── */
+  async function loadKPIs(){
+    try {
+      const { data: reports } = await supabase.from('reports').select('stage').eq('vertical', VERTICAL);
+      const { data: sources } = await supabase.from('data_sources').select('id').eq('vertical', VERTICAL);
+      const r = reports || [];
+      // Also fetch topline row count
+      let toplineCount = 0;
+      try{
+        const { count } = await supabase
+          .from('topline_data')
+          .select('id', {count:'exact', head:true})
+          .eq('vertical', VERTICAL);
+        toplineCount = count || 0;
+      } catch(_){}
+
+      document.getElementById('kpiRow').innerHTML = `
+        <div class="kpi"><div class="kpi-val">${r.length}</div><div class="kpi-label">Total Reports</div></div>
+        <div class="kpi"><div class="kpi-val">${r.filter(x=>x.stage==='published').length}</div><div class="kpi-label">Published</div></div>
+        <div class="kpi"><div class="kpi-val">${r.filter(x=>['submitted','senior_review','senior_approved','head_review'].includes(x.stage)).length}</div><div class="kpi-label">In Review</div></div>
+        <div class="kpi"><div class="kpi-val">${(sources||[]).length}</div><div class="kpi-label">Data Sources</div></div>
+        <div class="kpi"><div class="kpi-val">${toplineCount}</div><div class="kpi-label">Topline Metrics</div></div>`;
+    } catch(e){ console.error(e); }
+  }
+
+  /* ── Reports ── */
+  async function loadReports(){
+    try {
+      let q = supabase.from('reports').select(
+        'id,title,stage,priority,author_name,author_id,updated_at,rejection_note,due_date'
+      ).eq('vertical', VERTICAL).order('updated_at', {ascending:false});
+      // Analyst sees only own reports
+      if(currentProfile.role === 'analyst'){
+        q = q.eq('author_id', currentUser.id);
+      }
+      const { data, error } = await q;
+      if(error) throw error;
+      window._reportsList = data || [];
+      populateReportDropdowns();
+      renderReportTable(data || []);
+    } catch(e){ document.getElementById('reportTable').innerHTML='<tr><td colspan="6" class="empty">Failed to load reports.</td></tr>'; }
+  }
+
+  function renderReportTable(reports){
+    if(!reports.length){
+      document.getElementById('reportTable').innerHTML='<tr><td colspan="6" class="empty">No reports yet.</td></tr>';
+      return;
+    }
+    const role = currentProfile.role;
+    document.getElementById('reportTable').innerHTML = reports.map(r => {
+      const updated = r.updated_at ? new Date(r.updated_at).toLocaleDateString('en-IN') : '—';
+      const actions = buildActions(r, role);
+      return `<tr>
+        <td><div style="font-weight:500;font-size:12.5px">${esc(r.title)}</div>${r.rejection_note?`<div style="font-size:10.5px;color:#e85d4a;margin-top:2px">❌ ${esc(r.rejection_note)}</div>`:''}</td>
+        <td><span class="stage-pill s-${r.stage}">${STAGE_LABELS[r.stage]||r.stage}</span></td>
+        <td><span class="priority-dot p-${r.priority||'med'}"></span>${r.priority||'med'}</td>
+        <td style="font-size:11.5px;color:#7a8599">${r.author_name||'—'}</td>
+        <td style="font-size:11px;font-family:monospace;color:#7a8599">${updated}</td>
+        <td>${actions}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function buildActions(r, role){
+    const btns = [];
+    if(role === 'analyst' && r.stage === 'draft'){
+      btns.push(`<button class="btn-approve" onclick="workflowAction('${r.id}','submit','')">Submit</button>`);
+    }
+    if(role === 'senior' && r.stage === 'submitted'){
+      btns.push(`<button class="btn-approve" onclick="workflowAction('${r.id}','review','')">Take for Review</button>`);
+    }
+    if(role === 'senior' && r.stage === 'senior_review'){
+      btns.push(`<button class="btn-approve" onclick="workflowAction('${r.id}','approve','')">Approve</button>`);
+      btns.push(`<button class="btn-reject" onclick="openReject('${r.id}')">Reject</button>`);
+    }
+    if(role === 'head' && r.stage === 'senior_approved'){
+      btns.push(`<button class="btn-approve" onclick="workflowAction('${r.id}','review','')">Take for Review</button>`);
+    }
+    if(role === 'head' && r.stage === 'head_review'){
+      btns.push(`<button class="btn-approve" onclick="workflowAction('${r.id}','approve','')">Approve</button>`);
+      btns.push(`<button class="btn-reject" onclick="openReject('${r.id}')">Reject</button>`);
+    }
+    if(role === 'head' && r.stage === 'approved'){
+      btns.push(`<button class="btn-publish" onclick="workflowAction('${r.id}','publish','')">Publish</button>`);
+    }
+    return btns.join(' ') || '<span style="font-size:11px;color:#3d4a60">—</span>';
+  }
+
+  /* ── Workflow actions ── */
+  async function workflowAction(reportId, action, note){
+    const { data: { session } } = await supabase.auth.getSession();
+    try {
+      const res = await fetch('/api/reports/'+reportId+'/workflow', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+        body: JSON.stringify({action, note})
+      });
+      const json = await res.json();
+      if(!res.ok){ showToast(json.detail || 'Action failed'); return; }
+      showToast(`Report ${action}d → ${STAGE_LABELS[json.to_stage]}`);
+      loadReports(); loadKPIs();
+    } catch(_){ showToast('Network error'); }
+  }
+  window.workflowAction = workflowAction;
+
+  function openReject(id){ rejectTargetId=id; document.getElementById('rejectNote').value=''; openModal('rejectModal'); }
+  window.openReject = openReject;
+
+  async function confirmReject(){
+    const note = document.getElementById('rejectNote').value.trim();
+    if(!note){ showToast('Please enter a rejection reason'); return; }
+    closeModal('rejectModal');
+    await workflowAction(rejectTargetId, 'reject', note);
+  }
+  window.confirmReject = confirmReject;
+
+  /* ── Create report ── */
+  async function createReport(){
+    const title = document.getElementById('nr_title').value.trim();
+    if(!title){ showToast('Title is required'); return; }
+    const { data: { session } } = await supabase.auth.getSession();
+    const { error } = await supabase.from('reports').insert({
+      title,
+      abstract: document.getElementById('nr_abstract').value.trim() || null,
+      priority: document.getElementById('nr_priority').value,
+      due_date: document.getElementById('nr_due').value || null,
+      vertical: VERTICAL,
+      stage: 'draft',
+      author_id: currentUser.id,
+      author_name: currentProfile.full_name || currentProfile.email,
+      stage_entered_at: new Date().toISOString(),
+    });
+    if(error){ showToast('Failed: '+error.message); return; }
+    closeModal('newReportModal');
+    showToast('Report created');
+    loadReports(); loadKPIs();
+  }
+  window.createReport = createReport;
+
+  /* ── Factsheets ── */
+  async function loadFactsheets(){
+    try {
+      const { data, error } = await supabase.from('factsheets')
+        .select('id,slug,title,sub,status,metrics')
+        .eq('vertical', VERTICAL)
+        .order('updated_at', {ascending:false});
+      if(error) throw error;
+      const grid = document.getElementById('factsheetGrid');
+      if(!data || !data.length){ grid.innerHTML='<div class="empty">No factsheets yet for Pharma Intelligence.</div>'; return; }
+      grid.innerHTML = data.map(f => {
+        const metrics = (f.metrics || []).slice(0,3).map(m=>
+          `<div class="fs-metric"><div class="fs-metric-val">${esc(m.val||'—')}</div><div class="fs-metric-label">${esc(m.label||'')}</div></div>`
+        ).join('');
+        return `<div class="fs-card">
+          <div class="fs-status ${f.status}">${(f.status||'').toUpperCase()}</div>
+          <div class="fs-title">${esc(f.title)}</div>
+          <div class="fs-sub">${esc(f.sub||'')}</div>
+          ${metrics?`<div class="fs-metrics">${metrics}</div>`:''}
+        </div>`;
+      }).join('');
+    } catch(_){ document.getElementById('factsheetGrid').innerHTML='<div class="empty">Failed to load factsheets.</div>'; }
+  }
+
+  /* ── Data sources ── */
+  async function loadSources(){
+    try {
+      const { data, error } = await supabase.from('data_sources')
+        .select('id,name,status,tier,last_fetched,latest_value')
+        .eq('vertical', VERTICAL)
+        .order('name');
+      if(error) throw error;
+      const el = document.getElementById('sourcesList');
+      if(!data || !data.length){ el.innerHTML='<div class="empty">No data sources configured.</div>'; return; }
+      el.innerHTML = data.map(s => {
+        const when = s.last_fetched ? new Date(s.last_fetched).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:true}) : '—';
+        return `<div class="source-row">
+          <div class="source-info">
+            <span class="source-status status-${s.status||'stale'}"></span>
+            <span class="source-name">${esc(s.name)}</span>
+            <span class="source-tier">${s.tier||'T2'}</span>
+          </div>
+          <div class="source-meta">${s.latest_value?esc(s.latest_value)+' · ':''} ${when}</div>
+        </div>`;
+      }).join('');
+    } catch(_){ document.getElementById('sourcesList').innerHTML='<div class="empty">Failed to load sources.</div>'; }
+  }
+
+  /* ── Activity ── */
+  async function loadActivity(){
+    try {
+      const { data } = await supabase.from('activity_log')
+        .select('action,actor_name,field_name,old_value,new_value,note,created_at')
+        .eq('vertical', VERTICAL)
+        .order('created_at', {ascending:false})
+        .limit(20);
+      const el = document.getElementById('dashActivity');
+      if(!data || !data.length){ el.innerHTML='<div class="empty">No activity yet.</div>'; return; }
+      const icons = {submit:'📤',approve:'✅',reject:'❌',publish:'🚀',update:'✏️',create:'➕'};
+      el.innerHTML = data.map(a => {
+        const when = a.created_at ? new Date(a.created_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:true}) : '';
+        let desc = `<strong>${esc(a.actor_name||'Someone')}</strong> ${a.action}d`;
+        if(a.old_value && a.new_value) desc += ` · ${esc(a.old_value)} → ${esc(a.new_value)}`;
+        if(a.note) desc += ` — "${esc(a.note)}"`;
+        return `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 20px;border-bottom:1px solid var(--rule)">
+          <span style="font-size:14px;flex-shrink:0;margin-top:1px">${icons[a.action]||'•'}</span>
+          <div><div style="font-size:12px;line-height:1.5">${desc}</div>
+          <div style="font-size:10.5px;color:var(--fog);margin-top:2px;font-family:var(--ff-mono)">${when}</div></div>
+        </div>`;
+      }).join('');
+    } catch(_){ document.getElementById('dashActivity').innerHTML='<div class="empty">Failed to load activity.</div>'; }
+  }
+
+  /* ── Deliverable upload hub ── */
+  const FILE_ICONS = {docx:'📄',pdf:'📄',xlsx:'📊',xlsm:'📊',pptx:'🎯',csv:'🗃️',json:'🗃️'};
+  function fileIcon(name){ const e=(name.split('.').pop()||'').toLowerCase(); return FILE_ICONS[e]||'📎'; }
+
+  function triggerUpload(id){ document.getElementById(id).click(); }
+  window.triggerUpload = triggerUpload;
+
+  function fmtDate(d){
+    if(!d) return '—';
+    return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  }
+  function dataAge(asofVal){
+    if(!asofVal) return '';
+    const days = Math.floor((Date.now()-new Date(asofVal).getTime())/(1000*86400));
+    if(days<0) return '<span class="age-badge age-fresh">Future</span>';
+    if(days===0) return '<span class="age-badge age-fresh">Today</span>';
+    if(days<=7) return `<span class="age-badge age-fresh">${days}d old</span>`;
+    if(days<=30) return `<span class="age-badge age-recent">${days}d old</span>`;
+    if(days<=90) return `<span class="age-badge age-moderate">${Math.round(days/7)}w old</span>`;
+    if(days<=365) return `<span class="age-badge age-stale">${Math.round(days/30)}mo old</span>`;
+    return `<span class="age-badge age-old">${(days/365).toFixed(1)}yr old</span>`;
+  }
+  // Staged file store — keyed by deliverable type
+  window._stagedFiles = window._stagedFiles || {};
+
+  function handleDelivUpload(input, type){
+    const file = input.files[0];
+    if(!file) return;
+    window._stagedFiles[type] = file;   // keep reference for submitDeliv
+    const asofEl = document.getElementById(type+'-asof');
+    const asofVal = asofEl ? asofEl.value : '';
+    const today = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+    const list = document.getElementById(type+'-list');
+    // Replace any previous STAGED row (only one staged at a time)
+    const prev = list.querySelector('.us-pending');
+    if(prev) prev.closest('.ufile')?.remove();
+    list.insertAdjacentHTML('afterbegin', `<div class="ufile" data-staged="${type}">
+      <div class="ufile-icon">${fileIcon(file.name)}</div>
+      <div class="ufile-info">
+        <div class="ufile-name">${esc(file.name)}</div>
+        <div class="ufile-meta">
+          ${(file.size/1024/1024).toFixed(1)} MB
+          · <span class="ufile-datechip">📅 Staged ${today}</span>
+          ${asofVal ? `· <span class="ufile-datechip">🗓 Data as of ${fmtDate(asofVal)}</span> ${dataAge(asofVal)}` : ''}
+        </div>
+      </div>
+      <span class="ufile-status us-pending">STAGED</span>
+    </div>`);
+    input.value='';
+  }
+  window.handleDelivUpload = handleDelivUpload;
+
+  function switchDelivTab(key){
+    document.querySelectorAll('.dtab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('dtab-'+key).classList.add('active');
+    document.querySelectorAll('.deliv-panel').forEach(p=>p.classList.remove('show'));
+    document.getElementById('dp-'+key).classList.add('show');
+  }
+  window.switchDelivTab = switchDelivTab;
+
+  function clearDelivForm(type){
+    ['version','pages','notes','slides','sheets','sources','period','geo','asof','coverage','baseyear','presdate','nextupdate'].forEach(f=>{
+      const el=document.getElementById(type+'-'+f); if(el) el.value='';
+    });
+  }
+  window.clearDelivForm = clearDelivForm;
+
+  async function submitDeliv(type){
+    const listEl = document.getElementById(type+'-list');
+    const stagedRow = listEl.querySelector('[data-staged]');
+    const stagedBadge = stagedRow ? stagedRow.querySelector('.us-pending') : null;
+    if(!stagedBadge){ alert('Please select a file first.'); return; }
+
+    const file = window._stagedFiles[type];
+    if(!file){ alert('File reference lost — please re-select the file.'); return; }
+
+    // ── collect form fields ──────────────────────────────────────────────────
+    const g = id => { const el=document.getElementById(id); return el?el.value.trim():''; };
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    fd.append('deliverable_type', type);
+    fd.append('vertical', VERTICAL);
+    fd.append('report_id',   g(type+'-link'));
+    fd.append('model_title', g(type+'-version') ? `${file.name} v${g(type+'-version')}` : file.name);
+    fd.append('asof',        g(type+'-asof'));
+    fd.append('version',     g(type+'-version'));
+    // type-specific meta
+    if(type==='report'){
+      fd.append('coverage', g('report-coverage'));
+      fd.append('notes',    g('report-notes'));
+      fd.append('vis',      g('report-vis')||'public');
+      fd.append('pages',    g('report-pages'));
+    } else if(type==='model'){
+      fd.append('baseyear',   g('model-baseyear'));
+      fd.append('model_type', g('model-type'));
+      fd.append('sheets',     g('model-sheets'));
+      fd.append('sources',    g('model-sources'));
+    } else if(type==='deck'){
+      fd.append('slides',   g('deck-slides'));
+      fd.append('presdate', g('deck-presdate'));
+      fd.append('audience', g('deck-audience'));
+      fd.append('brand',    g('deck-brand'));
+    } else if(type==='data'){
+      fd.append('period',     g('data-period'));
+      fd.append('geo',        g('data-geo'));
+      fd.append('nextupdate', g('data-nextupdate'));
+      fd.append('publish',    g('data-publish')||'public');
+    }
+
+    // ── auth token ───────────────────────────────────────────────────────────
+    let token = '';
+    try {
+      const { data: { session } } = await window._supa.auth.getSession();
+      token = session?.access_token || '';
+    } catch(_){}
+    if(!token){ alert('Session expired — please log in again.'); return; }
+
+    // ── UI: uploading state ──────────────────────────────────────────────────
+    stagedBadge.className = 'ufile-status us-review';
+    stagedBadge.textContent = 'UPLOADING…';
+
+    try {
+      const res = await fetch(`/api/upload/${type}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: fd,
+      });
+      if(res.ok){
+        const uploadJson = await res.json();
+        stagedBadge.textContent = 'IN REVIEW';
+        delete window._stagedFiles[type];
+        // Auto-ingest topline data files immediately after upload
+        if(type === 'data' && uploadJson.id){
+          try{
+            const ingestRes = await fetch(`/api/ingest/${uploadJson.id}`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if(ingestRes.ok){
+              const ingestJson = await ingestRes.json();
+              showToast(`✓ ${ingestJson.rows_ingested} topline rows ingested`);
+            }
+          } catch(_){}
+        }
+        // Refresh the list from Supabase after a short delay
+        setTimeout(()=>{ loadDeliverablesList(); loadPublishedDeliverables(); if(type==='data') loadKPIs(); }, 1200);
+      } else {
+        const err = await res.json().catch(()=>({detail:'Upload failed'}));
+        stagedBadge.className = 'ufile-status us-pending';
+        stagedBadge.textContent = 'STAGED';
+        alert('Upload failed: ' + (err.detail || res.statusText));
+      }
+    } catch(e){
+      stagedBadge.className = 'ufile-status us-pending';
+      stagedBadge.textContent = 'STAGED';
+      alert('Network error: ' + e.message);
+    }
+  }
+  window.submitDeliv = submitDeliv;
+
+  function populateReportDropdowns(){
+    // Populated after reports load from Supabase
+    const selects = ['report-link','model-link','deck-link','data-link'];
+    selects.forEach(id=>{
+      const el=document.getElementById(id); if(!el) return;
+      el.innerHTML='<option value="">— select report —</option>';
+      (window._reportsList||[]).forEach(r=>{
+        el.innerHTML+=`<option value="${r.id}">${esc(r.title)}</option>`;
+      });
+    });
+  }
+  window.populateReportDropdowns = populateReportDropdowns;
+
+  // Status → display key mapping
+  const STATUS_KEY = {
+    draft:'pending', submitted:'review', senior_approved:'review',
+    approved:'attached', published:'attached', rejected:'pending'
+  };
+  // Status → human label
+  const STATUS_LABEL = {
+    draft:'DRAFT', submitted:'SUBMITTED', senior_approved:'SR APPROVED',
+    approved:'APPROVED', published:'PUBLISHED', rejected:'REJECTED'
+  };
+
+  // Workflow action buttons based on current status + viewer role
+  function _delivActions(r, role){
+    const id = r.id;
+    const st = r.status || 'draft';
+    const btns = [];
+    if(role==='senior'){
+      if(st==='submitted'){
+        btns.push(`<button class="wf-btn wf-approve" onclick="updateDelivStatus('${id}','senior_approved')">✓ Approve</button>`);
+        btns.push(`<button class="wf-btn wf-reject"  onclick="updateDelivStatus('${id}','rejected')">✕ Reject</button>`);
+      }
+    }
+    if(role==='head'){
+      if(st==='submitted'){
+        btns.push(`<button class="wf-btn wf-approve" onclick="updateDelivStatus('${id}','senior_approved')">✓ SR Approve</button>`);
+        btns.push(`<button class="wf-btn wf-reject"  onclick="updateDelivStatus('${id}','rejected')">✕ Reject</button>`);
+      } else if(st==='senior_approved'){
+        btns.push(`<button class="wf-btn wf-approve" onclick="updateDelivStatus('${id}','approved')">✓ Final Approve</button>`);
+        btns.push(`<button class="wf-btn wf-reject"  onclick="updateDelivStatus('${id}','rejected')">✕ Reject</button>`);
+      } else if(st==='approved'){
+        btns.push(`<button class="wf-btn wf-publish" onclick="updateDelivStatus('${id}','published')">🚀 Publish</button>`);
+        btns.push(`<button class="wf-btn wf-reject"  onclick="updateDelivStatus('${id}','rejected')">✕ Reject</button>`);
+      }
+    }
+    return btns.join('');
+  }
+
+  function _renderDelivRow(r){
+    const uploadedOn = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    const asof = (r.platform_tabs?.asof) || '';
+    const stKey = STATUS_KEY[r.status] || 'pending';
+    const stLabel = STATUS_LABEL[r.status] || (r.status||'DRAFT').toUpperCase();
+    const dlLink = r.signed_url ? `<a href="${r.signed_url}" target="_blank" class="ufile-dl" title="Download file">⬇</a>` : '';
+    const note = r.reviewer_notes ? `<div class="ufile-note">${esc(r.reviewer_notes)}</div>` : '';
+    const role = window._userRole || '';
+    const actions = _delivActions(r, role);
+    return `<div class="ufile" id="ufile-${r.id}">
+      <div class="ufile-icon">${fileIcon(r.file_type||'docx')}</div>
+      <div class="ufile-info">
+        <div class="ufile-name">${esc(r.model_title||'Untitled')}</div>
+        <div class="ufile-meta">
+          <span class="ufile-datechip">📅 ${uploadedOn}</span>
+          ${asof ? `· <span class="ufile-datechip">🗓 Data as of ${fmtDate(asof)}</span> ${dataAge(asof)}` : ''}
+        </div>
+        ${note}
+      </div>
+      <div class="ufile-actions">
+        ${actions}
+        ${dlLink}
+        <span class="ufile-status us-${stKey}" id="ufile-status-${r.id}">${stLabel}</span>
+      </div>
+    </div>`;
+  }
+
+  async function loadDeliverablesList(){
+    // Primary: use the backend API endpoint (enriches with signed_url + age_days)
+    // Fallback: direct Supabase JS query
+    let rows = [];
+    try {
+      const { data: { session } } = await window._supa.auth.getSession();
+      const token = session?.access_token || '';
+      if(token){
+        const res = await fetch(`/api/deliverables/${VERTICAL}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if(res.ok){
+          const json = await res.json();
+          rows = json.deliverables || [];
+        }
+      }
+    } catch(_){}
+
+    // Fallback if API not reachable or token unavailable
+    if(!rows.length && window._supa){
+      try{
+        const {data} = await window._supa
+          .from('model_uploads')
+          .select('id,file_type,model_title,status,created_at,platform_tabs')
+          .eq('vertical',VERTICAL)
+          .order('created_at',{ascending:false})
+          .limit(20);
+        rows = data || [];
+      }catch(_){}
+    }
+
+    if(!rows.length) return;
+    ['report','model','deck','data'].forEach(type=>{
+      const typeRows = rows.filter(r=>r.file_type===type);
+      const list = document.getElementById(type+'-list');
+      if(!list) return;
+      // Keep any STAGED rows (not from DB) at top, then DB rows
+      const stagedHtml = list.querySelector('[data-staged]')?.outerHTML || '';
+      list.innerHTML = stagedHtml + typeRows.map(_renderDelivRow).join('');
+    });
+  }
+  window.loadDeliverablesList = loadDeliverablesList;
+
+
+  async function loadPublishedDeliverables(){
+    const grid = document.getElementById('publishedDelivGrid');
+    const countEl = document.getElementById('publishedDelivCount');
+    if(!grid) return;
+
+    let rows = [];
+    // Try backend API first (has signed_url)
+    try{
+      const { data: { session } } = await window._supa.auth.getSession();
+      const token = session?.access_token || '';
+      if(token){
+        const res = await fetch(`/api/deliverables/${VERTICAL}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if(res.ok){
+          const json = await res.json();
+          rows = (json.deliverables || []).filter(r => r.status === 'published');
+        }
+      }
+    } catch(_){}
+
+    // Fallback: Supabase JS direct query
+    if(!rows.length && window._supa){
+      try{
+        const { data } = await window._supa
+          .from('model_uploads')
+          .select('id,file_type,model_title,status,created_at,platform_tabs,storage_path')
+          .eq('vertical', VERTICAL)
+          .eq('status', 'published')
+          .order('created_at', {ascending: false})
+          .limit(20);
+        rows = data || [];
+      } catch(_){}
+    }
+
+    if(countEl) countEl.textContent = rows.length ? `${rows.length} published` : '';
+
+    if(!rows.length){
+      grid.innerHTML = '<div class="empty" style="padding:20px 0;grid-column:1/-1">No published deliverables yet.</div>';
+      return;
+    }
+
+    const TYPE_ICON = {report:'📄', model:'📊', deck:'🎯', data:'🗃️'};
+    const TYPE_LABEL = {report:'Report', model:'Model', deck:'Deck', data:'Data'};
+
+    grid.innerHTML = rows.map(r => {
+      const icon  = TYPE_ICON[r.file_type] || '📎';
+      const label = TYPE_LABEL[r.file_type] || r.file_type;
+      const asof  = (r.platform_tabs?.asof) || '';
+      const publishedOn = r.created_at
+        ? new Date(r.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
+        : '—';
+      const dlBtn = r.signed_url
+        ? `<a href="${r.signed_url}" target="_blank" class="deliv-card-dl" title="Download">⬇ Download</a>`
+        : '';
+      return `<div class="deliv-card">
+        <div class="deliv-card-icon">${icon}</div>
+        <div class="deliv-card-title">${esc(r.model_title || 'Untitled')}</div>
+        <div class="deliv-card-meta">
+          <span>📅 Published ${publishedOn}</span>
+          ${asof ? `<span>🗓 Data as of ${fmtDate(asof)} ${dataAge(asof)}</span>` : ''}
+        </div>
+        <div class="deliv-card-footer">
+          <span class="deliv-card-type">${label}</span>
+          ${dlBtn}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  window.loadPublishedDeliverables = loadPublishedDeliverables;
+
+
+  async function loadTopline(){
+    const tbody  = document.getElementById('toplineBody');
+    const countEl = document.getElementById('toplineCount');
+    if(!tbody) return;
+    let rows = [];
+    try{
+      const { data: { session } } = await window._supa.auth.getSession();
+      const token = session?.access_token || '';
+      if(token){
+        const res = await fetch(`/api/topline/${VERTICAL}?limit=30`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if(res.ok){
+          const json = await res.json();
+          rows = json.rows || [];
+        }
+      }
+    } catch(_){}
+
+    // Fallback: Supabase JS
+    if(!rows.length && window._supa){
+      try{
+        const { data } = await window._supa
+          .from('topline_data')
+          .select('metric,geography,period,value,unit,delta,dir,asof')
+          .eq('vertical', VERTICAL)
+          .order('created_at', {ascending:false})
+          .limit(30);
+        rows = data || [];
+      } catch(_){}
+    }
+
+    if(countEl) countEl.textContent = rows.length ? `${rows.length} rows` : '';
+
+    if(!rows.length){
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No pharma topline data yet — upload a CSV or JSON data file.</td></tr>';
+      return;
+    }
+
+    const DIR_ICON = {up:'↑', down:'↓', flat:'→', '':''};
+    const DIR_COLOR = {up:'color:#4cff91', down:'color:#e85d4a', flat:'color:var(--fog)', '':''};
+    tbody.innerHTML = rows.map(r => {
+      const val   = r.value != null ? Number(r.value).toLocaleString('en-IN') : '—';
+      const delta = r.delta ? `<span style="${DIR_COLOR[r.dir||'']}">${DIR_ICON[r.dir||'']} ${esc(r.delta)}</span>` : '—';
+      const asof  = r.asof ? fmtDate(r.asof) : '—';
+      return `<tr>
+        <td>${esc(r.metric||'')}</td>
+        <td>${esc(r.geography||'')}</td>
+        <td>${esc(r.period||'')}</td>
+        <td style="font-family:var(--ff-mono)">${val}</td>
+        <td style="font-family:var(--ff-mono);color:var(--fog)">${esc(r.unit||'')}</td>
+        <td>${delta}</td>
+        <td style="font-family:var(--ff-mono);font-size:10px;color:var(--fog)">${asof}</td>
+      </tr>`;
+    }).join('');
+  }
+  window.loadTopline = loadTopline;
+
+
+  /* ── Research Requests ── */
+  const RR_STATUS_LABEL = {
+    draft:'Draft', pending_approval:'Pending Approval', approved:'Approved',
+    in_progress:'In Progress', review:'In Review', published:'Published', delivered:'Delivered'
+  };
+
+  async function loadResearchRequests(){
+    const countEl = document.getElementById('rrCount');
+    const listEl  = document.getElementById('rrList');
+    if(!listEl) return;
+    const role = window._userRole||'';
+    if(!['head','senior','master'].includes(role)){ return; }
+
+    // Show head new-request button
+    if(role==='head'||role==='master'){
+      const btn = document.getElementById('newRrBtn');
+      if(btn) btn.style.display='';
+    }
+
+    const { data:{ session } } = await window._supa.auth.getSession();
+    const token = session?.access_token||'';
+    let rows = [];
+    try{
+      const res = await fetch(`/api/research-requests/${VERTICAL}`, {
+        headers:{'Authorization':`Bearer ${token}`}
+      });
+      if(res.ok){
+        const json = await res.json();
+        rows = json.requests || [];
+      }
+    }catch(_){}
+
+    if(countEl) countEl.textContent = rows.length ? `${rows.length} request${rows.length!==1?'s':''}` : '';
+    if(!rows.length){
+      listEl.innerHTML = '<div class="empty" style="padding:16px">No research requests yet.</div>';
+      return;
+    }
+
+    // Fetch template URLs for each request (non-blocking)
+    for(const r of rows){
+      r._templates = {};
+      (async (rr)=>{
+        try{
+          const { data:{ session } } = await window._supa.auth.getSession();
+          const token = session?.access_token||'';
+          const tres = await fetch(`/api/research-requests/${rr.id}/templates`, {
+            headers:{'Authorization':`Bearer ${token}`}
+          });
+          if(tres.ok){ const tj = await tres.json(); rr._templates = tj.templates||{}; }
+        }catch(_){}
+      })(r);
+    }
+    listEl.innerHTML = rows.map(r => {
+      const geos = Array.isArray(r.scope_geographies) ? r.scope_geographies.join(', ') : (r.scope_geographies||'');
+      const badgeClass = `rr-status-${(r.status||'draft').replace(/[^a-z_]/g,'')}`;
+      const label = RR_STATUS_LABEL[r.status] || r.status;
+      const daysLeft = r.due_date ? Math.round((new Date(r.due_date)-new Date())/86400000) : null;
+      const dueStr = daysLeft!==null ? (daysLeft<0?`<span style="color:var(--coral)">${Math.abs(daysLeft)}d overdue</span>`:daysLeft===0?'<span style="color:var(--gold)">Due today</span>':`${daysLeft}d left`) : '';
+
+      // Actions based on role + status
+      let actions = '';
+      if((role==='head'||role==='master') && r.status==='pending_approval'){
+        actions += `<button class="rr-approve-btn" onclick="rrTransition('${r.id}','approved',event)">✓ Approve</button>`;
+      }
+      if((role==='head'||role==='master') && r.status==='approved'){
+        actions += `<button class="rr-progress-btn" onclick="rrTransition('${r.id}','in_progress',event)">▶ Start Production</button>`;
+      }
+      if((role==='head'||role==='master') && r.status==='review'){
+        actions += `<button class="rr-approve-btn" onclick="rrTransition('${r.id}','published',event)">✓ Mark Published</button>`;
+      }
+      if((role==='head'||role==='master') && ['approved','in_progress','review'].includes(r.status)){
+        actions += `<button class="rr-progress-btn" onclick="generateTemplates('${r.id}',event)">📄 Generate Templates</button>`;
+      }
+
+      // Template download links (if already generated)
+      let templateLinks = '';
+      if(r._templates){
+        const tmap = {report:'📋 Report',model:'📊 Model',topline:'📈 Topline CSV',deck:'🎯 Deck'};
+        for(const [k,v] of Object.entries(r._templates)){
+          if(v.url) templateLinks += `<a href="${v.url}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--acc);text-decoration:none;padding:3px 8px;border:1px solid var(--acc-glow);border-radius:4px;margin:3px 4px 0 0">${tmap[k]||k} ⬇</a>`;
+        }
+      }
+
+      return `<div class="rr-card">
+        <div class="rr-card-header">
+          <div class="rr-card-title">${esc(r.title)}</div>
+          <span class="rr-status-badge ${badgeClass}">${label}</span>
+        </div>
+        <div class="rr-card-meta">
+          <span class="rr-meta-item"><strong>${esc(r.indicator_name)}</strong></span>
+          ${geos ? `<span class="rr-meta-item">🌍 ${esc(geos)}</span>` : ''}
+          ${r.period ? `<span class="rr-meta-item">📅 ${esc(r.period)}</span>` : ''}
+          ${r.client_name ? `<span class="rr-meta-item">🏢 ${esc(r.client_name)}</span>` : ''}
+          ${dueStr ? `<span class="rr-meta-item">${dueStr}</span>` : ''}
+          ${r.contract_value ? `<span class="rr-meta-item" style="color:var(--gold)">₹${Number(r.contract_value).toLocaleString('en-IN')}</span>` : ''}
+        </div>
+        ${actions ? `<div>${actions}</div>` : ''}
+        ${templateLinks ? `<div style="margin-top:6px">${templateLinks}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+  window.loadResearchRequests = loadResearchRequests;
+
+  async function rrTransition(id, newStatus, evt){
+    if(evt) evt.stopPropagation();
+    const { data:{ session } } = await window._supa.auth.getSession();
+    const token = session?.access_token||'';
+    try{
+      const res = await fetch(`/api/research-requests/${id}/status`, {
+        method:'PATCH',
+        headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body: JSON.stringify({status:newStatus})
+      });
+      if(res.ok){
+        showToast(`✓ Status → ${RR_STATUS_LABEL[newStatus]||newStatus}`);
+        setTimeout(loadResearchRequests, 400);
+      } else {
+        const err = await res.json().catch(()=>({}));
+        showToast(`Error: ${err.detail||res.status}`, 4000);
+      }
+    }catch{
+      showToast('Request failed', 3000);
+    }
+  }
+
+  function openNewRrModal(){
+    document.getElementById('newRrModalBg').style.display='flex';
+  }
+  function closeNewRrModal(){
+    document.getElementById('newRrModalBg').style.display='none';
+  }
+
+  async function submitNewRr(){
+    const title     = document.getElementById('rrModalTitle').value.trim();
+    const indicator = document.getElementById('rrModalIndicator').value.trim();
+    const geosRaw   = document.getElementById('rrModalGeos').value.trim();
+    const period    = document.getElementById('rrModalPeriod').value.trim();
+    const client    = document.getElementById('rrModalClient').value.trim();
+    const value     = document.getElementById('rrModalValue').value;
+    const due       = document.getElementById('rrModalDue').value;
+    const notes     = document.getElementById('rrModalNotes').value.trim();
+    if(!title||!indicator){ showToast('Title and indicator are required', 3000); return; }
+    const geos = geosRaw ? geosRaw.split(',').map(g=>g.trim()).filter(Boolean) : [];
+    const { data:{ session } } = await window._supa.auth.getSession();
+    const token = session?.access_token||'';
+    try{
+      const res = await fetch('/api/research-requests', {
+        method:'POST',
+        headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body: JSON.stringify({
+          vertical:VERTICAL, title, indicator_name:indicator,
+          scope_geographies:geos, period, client_name:client,
+          contract_value: value ? Number(value) : null,
+          due_date: due||null, notes,
+        })
+      });
+      if(res.ok){
+        showToast('✓ Research request created');
+        closeNewRrModal();
+        ['rrModalTitle','rrModalIndicator','rrModalGeos','rrModalPeriod','rrModalClient','rrModalValue','rrModalDue','rrModalNotes']
+          .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+        setTimeout(loadResearchRequests, 400);
+      } else {
+        const err = await res.json().catch(()=>({}));
+        showToast(`Error: ${err.detail||res.status}`, 4000);
+      }
+    }catch{ showToast('Request failed', 3000); }
+  }
+
+
+  async function generateTemplates(id, evt){
+    if(evt) evt.stopPropagation();
+    showToast('⏳ Generating templates…', 8000);
+    const { data:{ session } } = await window._supa.auth.getSession();
+    const token = session?.access_token||'';
+    try{
+      const res = await fetch(`/api/research-requests/${id}/generate-templates`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if(res.ok){
+        const count = json.count || 0;
+        const errs  = json.errors?.length || 0;
+        showToast(`✓ ${count} template${count!==1?'s':''} generated${errs?` (${errs} error${errs!==1?'s':''})`:''}`);
+        setTimeout(loadResearchRequests, 600);
+      } else {
+        showToast(`Error: ${json.detail||res.status}`, 5000);
+      }
+    }catch{
+      showToast('Template generation failed', 4000);
+    }
+  }
+  window.generateTemplates = generateTemplates;
+
+  /* ── Navigation ── */
+  const sections = ['dashboard','reports','factsheets','sources','deliverables'];
+  const titles = {dashboard:'Dashboard',reports:'Reports',factsheets:'Factsheets',sources:'Data Sources',deliverables:'Deliverables Upload Hub'};
+  function showSection(id, btn){
+    sections.forEach(s=>{ document.getElementById('sec-'+s).style.display=s===id?'flex':'none'; if(s===id) document.getElementById('sec-'+s).style.flexDirection='column';});
+    document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+    document.getElementById('pageTitle').textContent = titles[id]||id;
+  }
+  window.showSection = showSection;
+  // init first section
+  sections.forEach(s=>{ if(s!=='dashboard') document.getElementById('sec-'+s).style.display='none'; });
+
+  /* ── Sign out ── */
+  async function signOut(){
+    if(supabase) await supabase.auth.signOut();
+    window.location.href='/';
+  }
+  window.signOut = signOut;
+
+  /* ── Modals ── */
+  function openModal(id){ document.getElementById(id).classList.add('open'); }
+  function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+  window.openModal=openModal; window.closeModal=closeModal;
+  function openNewReport(){ document.getElementById('nr_title').value=''; document.getElementById('nr_abstract').value=''; openModal('newReportModal'); }
+  window.openNewReport=openNewReport;
+
+  /* ── Toast ── */
+  let _tt;
+  function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),3000); }
+
+  /* ── Utils ── */
+  function esc(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+  boot();
+}());
+</script>
+
+<!-- Research Request Modal -->
+<div class="modal-bg" id="newRrModalBg" style="display:none;position:fixed;inset:0;background:rgba(6,8,13,.85);z-index:100;align-items:center;justify-content:center">
+  <div style="background:var(--ink2);border:1px solid var(--rule2);border-radius:var(--r2);width:min(520px,94vw);max-height:90vh;overflow-y:auto;padding:28px 28px 24px">
+    <div style="font-family:var(--ff-serif);font-size:20px;color:var(--white);margin-bottom:20px">New Research Request</div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Title *</label>
+      <input id="rrModalTitle" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none" placeholder="e.g. Oncology Drug Market — India Q4 2026">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Indicator / Research Focus *</label>
+      <input id="rrModalIndicator" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none" placeholder="e.g. Drug Sales by Therapy Area">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Geographies (comma-separated)</label>
+      <input id="rrModalGeos" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none" placeholder="e.g. India, Southeast Asia, Middle East">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Period</label>
+        <input id="rrModalPeriod" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none" placeholder="e.g. Q4 2026">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Client Name</label>
+        <input id="rrModalClient" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none" placeholder="Client or organisation">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Contract Value (INR)</label>
+        <input id="rrModalValue" type="number" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none" placeholder="0">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Due Date</label>
+        <input id="rrModalDue" type="date" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none;color-scheme:dark">
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--fog);margin-bottom:5px;display:block">Notes / Scope briefing</label>
+      <textarea id="rrModalNotes" style="width:100%;background:var(--ink3);border:1px solid var(--rule2);border-radius:var(--r);color:var(--white);font-family:var(--ff-body);font-size:13px;padding:9px 12px;outline:none;resize:vertical;min-height:70px" placeholder="Scope details, specific asks, context from sales team…"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+      <button onclick="closeNewRrModal()" style="padding:9px 18px;border-radius:var(--r);font-family:var(--ff-body);font-size:13px;cursor:pointer;background:transparent;color:var(--fog);border:1px solid var(--rule2)">Cancel</button>
+      <button onclick="submitNewRr()" style="padding:9px 18px;border-radius:var(--r);font-family:var(--ff-body);font-size:13px;cursor:pointer;background:var(--acc);color:var(--ink);border:none;font-weight:500">Create Request</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

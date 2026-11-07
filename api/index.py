@@ -311,6 +311,7 @@ _TRADE_HTML      = _load_page("trade-intelligence.html")
 _MARKETS_HTML    = _load_page("markets-intelligence.html")
 _PACKAGING_HTML  = _load_page("packaging-intelligence.html")
 _STARTUPS_HTML   = _load_page("startup-intelligence.html")
+_PHARMA_HTML     = _load_page("pharma-intelligence.html")
 _PREVIEW_HTML    = _load_page("preview.html")
 _MASTER_HTML     = _load_page("master-dashboard.html")
 
@@ -726,7 +727,7 @@ select.inline-select{background:var(--ink4);border:1px solid var(--rule2);color:
             </select>
             <select class="inline-select" onchange="changeVertical('${u.id}',this.value)">
               <option value="">vertical…</option>
-              ${['epi','agri','trade','markets','packaging','startups','all'].map(v=>`<option value="${v}">${v}</option>`).join('')}
+              ${['epi','agri','trade','markets','packaging','startups','pharma','all'].map(v=>`<option value="${v}">${v}</option>`).join('')}
             </select>
             <button class="action-btn" onclick="toggleActive('${u.id}',${u.is_active})">${u.is_active?'Deactivate':'Activate'}</button>
             <button class="action-btn danger" onclick="deleteUser('${u.id}','${u.email}')">Delete</button>
@@ -882,7 +883,7 @@ async def master_update_user(request: Request, user_id: str):
 
     if "role" in update and update["role"] not in ("analyst", "senior", "head"):
         raise HTTPException(status_code=400, detail="Invalid role")
-    if "vertical" in update and update["vertical"] not in ("epi", "agri", "trade", "markets", "packaging", "startups", "all"):
+    if "vertical" in update and update["vertical"] not in ("epi", "agri", "trade", "markets", "packaging", "startups", "pharma", "all"):
         raise HTTPException(status_code=400, detail="Invalid vertical")
 
     if not update:
@@ -1404,7 +1405,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     draft:5, submitted:20, senior_review:35, senior_approved:55,
     head_review:72, approved:88, published:100, rejected:0
   };
-  const V_CLASS = {epi:'v-epi',agri:'v-agri',trade:'v-trade',markets:'v-markets',packaging:'v-packaging',startups:'v-startups'};
+  const V_CLASS = {epi:'v-epi',agri:'v-agri',trade:'v-trade',markets:'v-markets',packaging:'v-packaging',startups:'v-startups',pharma:'v-pharma'};
 
   let allReports = [], allActivity = [];
 
@@ -1627,7 +1628,7 @@ async def master_delete_report(request: Request, report_id: str):
 
 # ── /api/upload/{deliverable_type} ───────────────────────────────────────────
 VALID_DELIVERABLE_TYPES = {"report", "model", "deck", "data"}
-VALID_VERTICALS = {"epi", "agri", "trade", "markets", "packaging", "startups"}
+VALID_VERTICALS = {"epi", "agri", "trade", "markets", "packaging", "startups", "pharma"}
 ALLOWED_EXTENSIONS = {
     "report": {"docx", "pdf"},
     "model":  {"xlsx", "xlsm"},
@@ -2433,11 +2434,13 @@ VERTICAL_TOPLINE_COLS = {
     "markets":   ["asset_class", "instrument", "metric", "geography", "period", "value", "unit", "delta", "dir"],
     "packaging": ["material", "end_use", "metric", "geography", "period", "value", "unit", "delta", "dir"],
     "startups":  ["sector", "stage", "metric", "geography", "period", "value", "unit", "delta", "dir"],
+    "pharma":    ["drug", "therapy_area", "brand_generic", "metric", "geography", "period", "value", "unit", "delta", "dir"],
 }
 
 VERTICAL_LABEL = {
     "epi": "Epidemiology", "agri": "Agriculture", "trade": "Trade",
     "markets": "Markets", "packaging": "Packaging", "startups": "Startups",
+    "pharma": "Pharma Intelligence",
 }
 
 VERTICAL_INDICATOR_LABEL = {
@@ -2447,6 +2450,7 @@ VERTICAL_INDICATOR_LABEL = {
     "markets":   "Market Segment / Asset Class",
     "packaging": "Material Type",
     "startups":  "Sector Focus",
+    "pharma":    "Drug / Therapy Area",
 }
 
 VERTICAL_SECTION_HEADINGS = {
@@ -2462,6 +2466,9 @@ VERTICAL_SECTION_HEADINGS = {
                   "Country Profiles", "Supply Chain Dynamics", "Sustainability Trends", "Data Sources & References"],
     "startups": ["Executive Summary", "Ecosystem Overview", "Sector & Stage Analysis",
                  "Country Profiles", "Funding Landscape", "Key Players & Trends", "Data Sources & References"],
+    "pharma":  ["Executive Summary", "Therapy Area Overview", "Drug & Brand Analysis",
+                "Country Profiles", "Market Share & Sales Trends", "Regulatory & Access Landscape",
+                "Pipeline Highlights", "Data Sources & References"],
 }
 
 
@@ -3136,6 +3143,13 @@ async def packaging_page():
 async def startups_page():
     """Startups analyst workspace — requires Supabase auth (startups or all vertical)."""
     return HTMLResponse(content=_inject_supa(_STARTUPS_HTML))
+
+
+@app.get("/pharma-intelligence", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/pharma-intelligence/", response_class=HTMLResponse, include_in_schema=False)
+async def pharma_page():
+    """Pharma Intelligence analyst workspace — requires Supabase auth (pharma or all vertical)."""
+    return HTMLResponse(content=_inject_supa(_PHARMA_HTML))
 
 
 @app.get("/preview", response_class=HTMLResponse, include_in_schema=False)
